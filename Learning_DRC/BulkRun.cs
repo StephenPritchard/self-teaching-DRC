@@ -3,35 +3,63 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.IO;
-using System.Threading;
 using System.Diagnostics;
 
 namespace Learning_DRC
 {
-    internal class BulkRun
+    internal sealed class BulkRun
     {
         private FileInfo _fileTokenCorpus;
         private FileInfo _fileTypeCorpus;
         private FileInfo _fileBulkRun;
         private readonly Dictionary<string, List<float>> _bulkRunParameters = new Dictionary<string, List<float>>();
+        
         private readonly LearningDRC _model;
-        private readonly DirectoryInfo _mainDirectory;
+        
+        private readonly DirectoryInfo _mainDirectory = new DirectoryInfo(".");
         private DirectoryInfo _workingSubDirectory;
-        private readonly Stopwatch _sw;
+        
+        private readonly Stopwatch _sw = Stopwatch.StartNew();
 
         public BulkRun(LearningDRC model)
         {
             _model = model;
-            _mainDirectory = new DirectoryInfo(".");
-            _sw = Stopwatch.StartNew();
             GetFileNames();
             GetBulkRunParameters();
-            RunSimulations();
+        }
+
+        private void GetFileNames()
+        {
+            Console.WriteLine();
+            Console.Write("Enter the filename for the bulkrun parameter variations: ");
+            var bulkRun = Console.ReadLine();
+            if (bulkRun != null)
+                _fileBulkRun = new FileInfo(Path.Combine(_mainDirectory.FullName, bulkRun));
+            else
+                Environment.Exit(0);
+
+            Console.WriteLine();
+            Console.Write("Enter the filename for the token (training) corpus: ");
+            var tokenCorpusName = Console.ReadLine();
+            if (tokenCorpusName != null)
+                _fileTokenCorpus = new FileInfo(Path.Combine(_mainDirectory.FullName, tokenCorpusName));
+            else
+                Environment.Exit(0);
+
+            Console.WriteLine();
+            Console.Write("Enter the filename for the type (testing) corpus: ");
+            var typeCorpusName = Console.ReadLine();
+            if (typeCorpusName != null)
+                _fileTypeCorpus = new FileInfo(Path.Combine(_mainDirectory.FullName, typeCorpusName));
+            else
+                Environment.Exit(0);
+
+            Console.WriteLine();
         }
 
         public void RunSimulations()
         {
-                LoopOverParameterValues(_bulkRunParameters.Count - 1, "");
+            LoopOverParameterValues(_bulkRunParameters.Count - 1, "");
         }
 
         private void LoopOverParameterValues(int parameterIndexInDictionary, string subFolderName)
@@ -64,18 +92,6 @@ namespace Learning_DRC
             }
         }
 
-
-        //private void CreateSubFolder()
-        //{
-            
-        //    foreach (var parameterName in _bulkRunParameters.Keys)
-        //    {
-        //        _subFolderName.Append($"{parameterName}{_model.GetType().GetField(parameterName).GetValue(this)}");
-        //    }
-        //    _workingSubDirectory = _mainDirectory.CreateSubdirectory(_subFolderName.ToString());
-        //}
-
-
         private void RunTraining()
         {
             _model.LoadGPCs(new FileInfo(Path.Combine(_mainDirectory.FullName, "gpcrules")));
@@ -92,15 +108,13 @@ namespace Learning_DRC
             }
             catch
             {
-                System.Console.WriteLine("There was a problem opening the token corpus file.");
-                System.Console.Write("Press any key to exit. ");
-                System.Console.ReadKey();
+                Console.WriteLine("There was a problem opening the token corpus file.");
+                Console.Write("Press any key to exit. ");
+                Console.ReadKey();
                 Environment.Exit(0);
             }
 
             string line;
-            string[] splitline;
-            string[] output;
 
             do
             {
@@ -109,9 +123,10 @@ namespace Learning_DRC
                 if (line == null)
                     continue;
 
-                splitline = line.Split(new char[] { ' ' });
+                var splitline = line.Split(' ');
 
                 //code to handle stimuli presented either with or without context.
+                string[] output;
                 if (splitline.Length == 2)
                 {
                     _sw.Start();
@@ -129,20 +144,20 @@ namespace Learning_DRC
                         }
                     }
                     streamW.Write("  Output: {0}  ", output[1]);
-                    System.Console.Write($"RT: {output[0]}  Input: {splitline[0]} Context: ");
+                    Console.Write($"RT: {output[0]}  Input: {splitline[0]} Context: ");
                     if (output.Length > 2)
                     {
                         for (var i = 2; i < output.Length; i++)
                         {
-                            System.Console.Write($" {output[i]}");
+                            Console.Write($" {output[i]}");
                         }
                     }
-                    System.Console.Write($"  Output: {output[1]}  ");
+                    Console.Write($"  Output: {output[1]}  ");
 
 
                     streamW.WriteLine($"Sim_time: {_sw.ElapsedMilliseconds} ms");
                     streamW.Close();
-                    System.Console.WriteLine($"Sim_time: {_sw.ElapsedMilliseconds} ms");
+                    Console.WriteLine($"Sim_time: {_sw.ElapsedMilliseconds} ms");
                     _sw.Reset();
                 }
                 else if (splitline.Length == 1)
@@ -157,14 +172,14 @@ namespace Learning_DRC
                     streamW.Write(" no_context");
 
                     streamW.Write("  Output: {0}  ", output[1]);
-                    System.Console.Write($"RT: {output[0]}  Input: {splitline[0]} Context: ");
+                    Console.Write($"RT: {output[0]}  Input: {splitline[0]} Context: ");
                     streamW.Write(" no_context");
-                    System.Console.Write($"  Output: {output[1]}  ");
+                    Console.Write($"  Output: {output[1]}  ");
 
 
                     streamW.WriteLine($"Sim_time: {_sw.ElapsedMilliseconds} ms");
                     streamW.Close();
-                    System.Console.WriteLine($"Sim_time: {_sw.ElapsedMilliseconds} ms");
+                    Console.WriteLine($"Sim_time: {_sw.ElapsedMilliseconds} ms");
                     _sw.Reset();
                 }
                 else
@@ -172,7 +187,7 @@ namespace Learning_DRC
                     var streamW = new StreamWriter(fileTrainingLog.FullName, true);
                     streamW.WriteLine("Bad input line skipped.");
                     streamW.Close();
-                    System.Console.WriteLine("Bad input line skipped.");
+                    Console.WriteLine("Bad input line skipped.");
                 }
 
 
@@ -198,16 +213,14 @@ namespace Learning_DRC
             }
             catch
             {
-                System.Console.WriteLine("There was a problem opening the type corpus file.");
-                System.Console.Write("Press any key to exit. ");
-                System.Console.ReadKey();
+                Console.WriteLine("There was a problem opening the type corpus file.");
+                Console.Write("Press any key to exit. ");
+                Console.ReadKey();
                 Environment.Exit(0);
             }
 
             string line;
-            string[] splitline;
-            string[] output;
-            
+
             do
             {
                 line = streamR.ReadLine();
@@ -215,9 +228,10 @@ namespace Learning_DRC
                 if (line == null)
                     continue;
 
-                splitline = line.Split(new char[] { ' ' });
+                var splitline = line.Split(' ');
 
                 //code to handle stimuli presented either with or without context.
+                string[] output;
                 if (splitline.Length == 2)
                 {
                     _sw.Start();
@@ -227,13 +241,13 @@ namespace Learning_DRC
                     var streamW = new StreamWriter(fileTestingResults.FullName, true);
                     streamW.Write("RT: {0}  Input: {1}  Context: <none>", output[0], splitline[0]);
                     streamW.Write("  Output: {0}  ", output[1]);
-                    System.Console.Write($"RT: {output[0]}  Input: {splitline[0]} Context: <none>");
-                    System.Console.Write($"  Output: {output[1]}  ");
+                    Console.Write($"RT: {output[0]}  Input: {splitline[0]} Context: <none>");
+                    Console.Write($"  Output: {output[1]}  ");
 
 
                     streamW.WriteLine($"Sim_time: {_sw.ElapsedMilliseconds} ms");
                     streamW.Close();
-                    System.Console.WriteLine($"Sim_time: {_sw.ElapsedMilliseconds} ms");
+                    Console.WriteLine($"Sim_time: {_sw.ElapsedMilliseconds} ms");
                     _sw.Reset();
                 }
                 else if (splitline.Length == 1)
@@ -247,14 +261,13 @@ namespace Learning_DRC
                     streamW.Write(" no_context");
                     
                     streamW.Write("  Output: {0}  ", output[1]);
-                    System.Console.Write($"RT: {output[0]}  Input: {splitline[0]} Context: ");
+                    Console.Write($"RT: {output[0]}  Input: {splitline[0]} Context: ");
                     streamW.Write(" no_context");
-                    System.Console.Write($"  Output: {output[1]}  ");
-
+                    Console.Write($"  Output: {output[1]}  ");
 
                     streamW.WriteLine($"Sim_time: {_sw.ElapsedMilliseconds} ms");
                     streamW.Close();
-                    System.Console.WriteLine($"Sim_time: {_sw.ElapsedMilliseconds} ms");
+                    Console.WriteLine($"Sim_time: {_sw.ElapsedMilliseconds} ms");
                     _sw.Reset();
                 }
                 else
@@ -262,45 +275,13 @@ namespace Learning_DRC
                     var streamW = new StreamWriter(fileTestingResults.FullName, true);
                     streamW.WriteLine("Bad input line skipped.");
                     streamW.Close();
-                    System.Console.WriteLine("Bad input line skipped.");
+                    Console.WriteLine("Bad input line skipped.");
                 }
 
             } while (line != null);
             streamR.Close();
-
-
-
         }
 
-
-        private void GetFileNames()
-        {
-            Console.WriteLine();
-            Console.Write("Enter the filename for the bulkrun parameter variations: ");
-            var bulkRun = Console.ReadLine();
-            if (bulkRun != null)
-                _fileBulkRun = new FileInfo(Path.Combine(_mainDirectory.FullName, bulkRun));
-            else
-                Environment.Exit(0);
-
-            Console.WriteLine();
-            Console.Write("Enter the filename for the token (training) corpus: ");
-            var tokenCorpusName = Console.ReadLine();
-            if (tokenCorpusName != null)
-                _fileTokenCorpus = new FileInfo(Path.Combine(_mainDirectory.FullName, tokenCorpusName));
-            else
-                Environment.Exit(0);
-
-            Console.WriteLine();
-            Console.Write("Enter the filename for the type (testing) corpus: ");
-            var typeCorpusName = Console.ReadLine();
-            if (typeCorpusName != null)
-                _fileTypeCorpus = new FileInfo(Path.Combine(_mainDirectory.FullName, typeCorpusName));
-            else
-                Environment.Exit(0);
-
-            Console.WriteLine();
-        }
 
         private void GetBulkRunParameters()
         {
@@ -311,14 +292,13 @@ namespace Learning_DRC
             }
             catch
             {
-                System.Console.WriteLine("There was a problem opening the bulkrun parameters file.");
-                System.Console.Write("Press any key to exit. ");
-                System.Console.ReadKey();
+                Console.WriteLine("There was a problem opening the bulkrun parameters file.");
+                Console.Write("Press any key to exit. ");
+                Console.ReadKey();
                 Environment.Exit(0);
             }
 
             string line;
-            string[] splitline;
 
             do
             {
@@ -327,7 +307,7 @@ namespace Learning_DRC
                 if ((line == null) || (line == "") || (line[0] == '#'))
                     continue;
 
-                splitline = line.Split(new char[] { ' ' });
+                var splitline = line.Split(' ');
 
                 if (splitline.Length < 2)
                     continue;
@@ -342,9 +322,9 @@ namespace Learning_DRC
                 }
                 catch
                 {
-                    System.Console.WriteLine("Had problems reading data out of the bulkrun parameters file.");
-                    System.Console.Write("Press a key to exit. ");
-                    System.Console.ReadKey();
+                    Console.WriteLine("Had problems reading data out of the bulkrun parameters file.");
+                    Console.Write("Press a key to exit. ");
+                    Console.ReadKey();
                     Environment.Exit(0);
                 }
                 
@@ -433,8 +413,16 @@ namespace Learning_DRC
             }
             return "";
         }
-
-
-        
     }
+    
+    //private void CreateSubFolder()
+    //{
+    //    foreach (var parameterName in _bulkRunParameters.Keys)
+    //    {
+    //        _subFolderName.Append($"{parameterName}{_model.GetType().GetField(parameterName).GetValue(this)}");
+    //    }
+    //    _workingSubDirectory = _mainDirectory.CreateSubdirectory(_subFolderName.ToString());
+    //}
+
+
 }

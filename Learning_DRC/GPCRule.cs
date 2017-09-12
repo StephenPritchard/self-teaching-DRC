@@ -1,35 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace Learning_DRC
 {
-    class GPCRule
+    internal class GPCRule
     {
-        // ENUMERATED TYPES
-
         public enum RuleType
         {
-            body,
-            multi,
-            context,
-            two,
-            mphon,
-            single,
-            outrule,
+            Body,
+            Multi,
+            Context,
+            Two,
+            Mphon,
+            Single,
+            Outrule,
         }
         public enum RulePosition
         {
-            beginning,
-            middle,
-            end,
-            all,
+            Beginning,
+            Middle,
+            End,
+            All,
         }
 
-        // PROPERTIES
-
-        public RulePosition RPosition { get; set; }
+        public RulePosition RPosition {get; set; }
         public RuleType RType { get; set; }
         public string RGrapheme { get; set; }
         public string RPhoneme {get; set; }
@@ -37,23 +31,21 @@ namespace Learning_DRC
         public float RWeight {get; set;}
 
 
-        // CONSTRUCTOR
-
-        public GPCRule(string[] attributes)
+        public GPCRule(IList<string> attributes)
         {
             switch (attributes[0])
             {
                 case "b":
-                    RPosition = RulePosition.beginning;
+                    RPosition = RulePosition.Beginning;
                     break;
                 case "m":
-                    RPosition = RulePosition.middle;
+                    RPosition = RulePosition.Middle;
                     break;
                 case "e":
-                    RPosition = RulePosition.end;
+                    RPosition = RulePosition.End;
                     break;
                 case "A":
-                    RPosition = RulePosition.all;
+                    RPosition = RulePosition.All;
                     break;
                 default:
                     System.Console.WriteLine("Invalid rule position {0} for grapheme {1}", attributes[0], attributes[2]);
@@ -63,25 +55,25 @@ namespace Learning_DRC
             switch (attributes[1])
             {
                 case "body":
-                    RType = RuleType.body;
+                    RType = RuleType.Body;
                     break;
                 case "multi":
-                    RType = RuleType.multi;
+                    RType = RuleType.Multi;
                     break;
                 case "cs":
-                    RType = RuleType.context;
+                    RType = RuleType.Context;
                     break;
                 case "two":
-                    RType = RuleType.two;
+                    RType = RuleType.Two;
                     break;
                 case "mphon":
-                    RType = RuleType.mphon;
+                    RType = RuleType.Mphon;
                     break;
                 case "sing":
-                    RType = RuleType.single;
+                    RType = RuleType.Single;
                     break;
                 case "out":
-                    RType = RuleType.outrule;
+                    RType = RuleType.Outrule;
                     break;
                 default:
                     System.Console.WriteLine("Invalid rule type {0} for grapheme {1}", attributes[1], attributes[2]);
@@ -91,36 +83,34 @@ namespace Learning_DRC
             RGrapheme = attributes[2];
             RPhoneme = attributes[3];
 
-            if (attributes[4] == "u")
+            switch (attributes[4])
             {
-                RProtection = false;
-            }
-            else if (attributes[4] == "p")
-            {
-                RProtection = true;
-            }
-            else
-            {
-                System.Console.WriteLine("Invalid rpotection status {0} for grapheme {1}", attributes[4], attributes[2]);
+                case "u":
+                    RProtection = false;
+                    break;
+                case "p":
+                    RProtection = true;
+                    break;
+                default:
+                    Console.WriteLine("Invalid rpotection status {0} for grapheme {1}", attributes[4], attributes[2]);
+                    break;
             }
 
             RWeight = float.Parse(attributes[5]);
         }
 
-        // Method to return a char (b, m, e, or A) for position, so that it can easily be printed
-        // to the activations file
-        public char GetPosChar()
+        public char GetPositionCharacter()
         {
             switch (RPosition)
             {
-                case (RulePosition.beginning):
+                case (RulePosition.Beginning):
                     return 'b';
 
-                case (RulePosition.middle):
+                case (RulePosition.Middle):
                     return 'm';
-                case (RulePosition.end):
+                case (RulePosition.End):
                     return 'e';
-                case (RulePosition.all):
+                case (RulePosition.All):
                     return 'A';
                 default:
                     return '?';
