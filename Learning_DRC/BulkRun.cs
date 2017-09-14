@@ -57,6 +57,54 @@ namespace Learning_DRC
             Console.WriteLine();
         }
 
+        private void GetBulkRunParameters()
+        {
+            StreamReader streamR = null;
+            try
+            {
+                streamR = _fileBulkRun.OpenText();
+            }
+            catch
+            {
+                Console.WriteLine("There was a problem opening the bulkrun parameters file.");
+                Console.Write("Press any key to exit. ");
+                Console.ReadKey();
+                Environment.Exit(0);
+            }
+
+            string line;
+
+            do
+            {
+                line = streamR.ReadLine();
+
+                if ((line == null) || (line == "") || (line[0] == '#'))
+                    continue;
+
+                var splitline = line.Split(' ');
+
+                if (splitline.Length < 2)
+                    continue;
+
+                _bulkRunParameters.Add(splitline[0], new List<float>());
+                try
+                {
+                    for (var i = 1; i < splitline.Length; i++)
+                    {
+                        _bulkRunParameters[splitline[0]].Add(float.Parse(splitline[i]));
+                    }
+                }
+                catch
+                {
+                    Console.WriteLine("Had problems reading data out of the bulkrun parameters file.");
+                    Console.Write("Press a key to exit. ");
+                    Console.ReadKey();
+                    Environment.Exit(0);
+                }
+                
+            } while (line != null);
+        }
+
         public void RunSimulations()
         {
             LoopOverParameterValues(_bulkRunParameters.Count - 1, "");
@@ -283,55 +331,6 @@ namespace Learning_DRC
         }
 
 
-        private void GetBulkRunParameters()
-        {
-            StreamReader streamR = null;
-            try
-            {
-                streamR = _fileBulkRun.OpenText();
-            }
-            catch
-            {
-                Console.WriteLine("There was a problem opening the bulkrun parameters file.");
-                Console.Write("Press any key to exit. ");
-                Console.ReadKey();
-                Environment.Exit(0);
-            }
-
-            string line;
-
-            do
-            {
-                line = streamR.ReadLine();
-
-                if ((line == null) || (line == "") || (line[0] == '#'))
-                    continue;
-
-                var splitline = line.Split(' ');
-
-                if (splitline.Length < 2)
-                    continue;
-
-                _bulkRunParameters.Add(splitline[0], new List<float>());
-                try
-                {
-                    for (var i = 1; i < splitline.Length; i++)
-                    {
-                        _bulkRunParameters[splitline[0]].Add(float.Parse(splitline[i]));
-                    }
-                }
-                catch
-                {
-                    Console.WriteLine("Had problems reading data out of the bulkrun parameters file.");
-                    Console.Write("Press a key to exit. ");
-                    Console.ReadKey();
-                    Environment.Exit(0);
-                }
-                
-            } while (line != null);
-        }
-
-
         private string GetParameterFieldName(string parameterName)
         {
             switch (parameterName)
@@ -414,15 +413,4 @@ namespace Learning_DRC
             return "";
         }
     }
-    
-    //private void CreateSubFolder()
-    //{
-    //    foreach (var parameterName in _bulkRunParameters.Keys)
-    //    {
-    //        _subFolderName.Append($"{parameterName}{_model.GetType().GetField(parameterName).GetValue(this)}");
-    //    }
-    //    _workingSubDirectory = _mainDirectory.CreateSubdirectory(_subFolderName.ToString());
-    //}
-
-
 }

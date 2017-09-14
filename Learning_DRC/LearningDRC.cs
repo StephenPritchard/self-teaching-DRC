@@ -15,11 +15,6 @@ namespace Learning_DRC
 
         #region SAVE NETWORK METHODS
 
-        /// <summary>
-        ///     Save record of learned orthographic words, and to which phonological words
-        ///     they are connected, in the file orthographicknowledge.txt
-        /// </summary>
-        /// <param name="workingSubDir"></param>
         private void SaveLearnedOrthographicVocabulary(FileSystemInfo workingSubDir)
         {
             var path = Path.Combine(workingSubDir.FullName, OrthographicKnowledgeFilename);
@@ -35,7 +30,6 @@ namespace Learning_DRC
                 $"# Parameters: OWordThreshold: {_printedWordRecogThreshold}  PWordThreshold: {_spokenWordRecogThreshold}  C2PExcitation: {_semantic2PhonolexExcitation}  MinReadingPhonology: {_minReadingPhonology}");
             sw.WriteLine("#");
 
-            // Write WORD lines
             var line = new StringBuilder();
 
             for (var l = 0; l < _printedWordsCount; l++)
@@ -217,72 +211,23 @@ namespace Learning_DRC
             Console.WriteLine("Sim_time: {0} ms", Timer.ElapsedMilliseconds);
         }
 
+        public void ClearOrthographicLexicon()
+        {
+            _printedWords = new List<string>();
+            _printedWordFreq = new List<int>();
+            _spokenWordsForEachPrintedWord = new List<List<int>>();
+            _printedWordsForEachSpokenWord = new List<int>[_spokenWordsLength];
+            _printedWordsCount = 0;
+            for (var m = 0; m < _spokenWordsLength; m++)
+                _printedWordsForEachSpokenWord[m] = new List<int>();
+        }
+
         #region FIELDS
+        private readonly Random _rnd = new Random();
+        private const char Blankchar = '+';
 
-        private readonly Random _rnd = new Random(); // used to select random contextual options to activate
-        private const char Blankchar = '+'; // choose arbitrary ascii character to act as the blank character.      
-
-        // PROPERTY FIELDS -
-        // read from "properties" file.
-        private string _name; // Data from DRC-1.2.1
-
-        private string _version; // Data from DRC-1.2.1
-        private string _releaseDate; // Data from DRC-1.2.1
-        private string _creator; // Data from DRC-1.2.1
-        private string _url; // Data from DRC-1.2.1
-        private int _nLetterSlots; // Number of letter level slots
-        private int _nPhonemeSlots; // Number of phoneme level slots
-
-
-        // LETTERS, PHONEMES, VOCAB FIELDS
-        private int[][] _letterFeatures; // visual feature patterns for each letter
-
-        private Dictionary<int, char> _letters; // orthographic letters, with index as key
-        private Dictionary<char, int> _lettersReverseDictionary; // orthographic letters, with letter as key
-        private Dictionary<int, char> _phonemes; // phonemes, with index as key
-        private Dictionary<char, int> _phonemesReverseDictionary; // phonemes, with phoneme as key
-        private bool[] _vowelStatus; // whether each letter is a vowel or not
-        private List<string> _printedWords; // orthographic lexicon words
-        private List<int> _printedWordFreq; // orthographic word frequencies
-        private int _maxPrintedWordFreq; // frequency of the most frequent orthographic word
-        private string[] _spokenWords; // phonological lexicon words
-        private int[] _spokenWordFreq; // phonological word frequencies
-        private int _maxSpokenWordFreq; // frequency of most frequent phonological word
-
-        private float[] _printedCFS;
-        // orthographic constant frequency scaling (CFS) values (see Coltheart et al. (2001) p.216)
-
-        private float[] _spokenCFS;
-        // phonological constant frequency scaling (CFS) values (see Coltheart et al. (2001) p.216)
-
-        private List<List<int>> _spokenWordsForEachPrintedWord;
-        // phonological words excited by each orthographic word (e.g. /b5/ and /b6/ excited by BOW)
-
-        private List<int>[] _printedWordsForEachSpokenWord;
-        // learned orthographic words excited by each phonological word (e.g. SALE and SAIL excited by /s1l/)
-
-        // GPC FIELDS
-        private GPCRule[] _bodyRules;
-
-        private GPCRule[] _multiRules;
-        private GPCRule[] _twoRules;
-        private GPCRule[] _mphonRules;
-        private GPCRule[] _contextRules;
-        private GPCRule[] _singleRules;
-        private GPCRule[] _outRules;
-
-        private string _currentGPCInput; // stores the letters currently available to the GPC route.
-
-        private int _currentRightmostPhoneme;
-        // the right-most phoneme slot receiving activation from the GPC route last cycle.
-
-        private bool _lastSlotSeen;
-        // set to true if the GPCRoute tries to include input from another letter slot,
-        // but can't because already at the last slot.
-
-        // FILE NAME FIELDS
+        /// FILE NAME FIELDS
         private readonly FileInfo _fileProperties = new FileInfo("properties");
-
         private readonly FileInfo _fileParameters = new FileInfo("default.parameters");
         private readonly FileInfo _fileLearningParameters = new FileInfo("learning.parameters");
         private readonly FileInfo _fileLetters = new FileInfo("letters");
@@ -292,122 +237,141 @@ namespace Learning_DRC
         private readonly FileInfo _fileActs = new FileInfo("activations.txt");
         private const string OrthographicKnowledgeFilename = "orthographicknowledge.txt";
 
-        // WEIGHT MATRICES
-        private float[][] _vF1ToLetterWeights; // stores excitation/inhibition from each VF to each letter
+        /// DRC-1.2.1 PROPERTY FIELDS
+        // Read from DRC's "properties" file. Most are unused in ST-DRC, but included
+        // for legacy reasons
+        private string _name;
 
+        private string _version;
+        private string _releaseDate;
+        private string _creator;
+        private string _url;
+        private int _nLetterSlots;
+        private int _nPhonemeSlots;
+
+
+        /// LETTERS, PHONEMES, VOCAB FIELDS
+        private int[][] _letterFeatures; // visual feature patterns for each letter
+        private Dictionary<int, char> _letters; // Letters, with index as key
+        private Dictionary<char, int> _lettersReverseDictionary; // Letter indices, letter as key
+        private Dictionary<int, char> _phonemes; // phonemes, with index as key
+        private Dictionary<char, int> _phonemesReverseDictionary; // phoneme indices, phoneme as key
+        private bool[] _vowelStatus; // whether each letter is a vowel or not
+        private List<string> _printedWords; // orthographic lexicon words
+        private List<int> _printedWordFreq; // orthographic word frequencies
+        private int _maxPrintedWordFreq; // frequency of the most frequent orthographic word
+        private string[] _spokenWords; // phonological lexicon words
+        private int[] _spokenWordFreq; // phonological word frequencies
+        private int _maxSpokenWordFreq; // frequency of most frequent phonological word
+        private float[] _printedCFS;
+        // orthographic constant frequency scaling (CFS) values (see Coltheart et al. (2001) p.216)
+        private float[] _spokenCFS;
+        // phonological constant frequency scaling (CFS) values (see Coltheart et al. (2001) p.216)
+        private List<List<int>> _spokenWordsForEachPrintedWord;
+        // phonological words excited by each orthographic word (e.g. /b5/ and /b6/ excited by BOW)
+        private List<int>[] _printedWordsForEachSpokenWord;
+        // learned orthographic words excited by each phonological word (e.g. SALE and SAIL excited by /s1l/)
+
+        /// GPC FIELDS
+        private GPCRule[] _bodyRules; // unused in version 1.0 of ST-DRC, and in DRC 1.*
+        private GPCRule[] _multiRules;
+        private GPCRule[] _twoRules;
+        private GPCRule[] _mphonRules;
+        private GPCRule[] _contextRules;
+        private GPCRule[] _singleRules;
+        private GPCRule[] _outRules;
+        private string _currentGPCInput; // stores the letters currently available to the GPC route.
+        private int _currentRightmostPhoneme;
+        // the right-most phoneme slot receiving activation from the GPC route last cycle.
+        private bool _lastSlotSeen;
+        // True if the GPCRoute tries to include input from another letter slot,
+        // but can't because already at the last slot.
+
+        /// WEIGHT MATRICES
+        private float[][] _vF1ToLetterWeights; // stores excitation/inhibition from each VF to each letter
         private float[][] _vF0ToLetterWeights; // stores excitation/inhibition from each inverse VF to each letter
 
-        // NETWORK STATE FIELDS
-        private string _stimulus; // used in Simulate and ClampVisualFeatures methods
-        private int _stimulusLength; // used in both the Simulate and Search4Multi methods
-        private float _normMultiplier; // L2O normalisation multiplier. Equals nLetterSlots / stimulusLength, 
+        /// NETWORK STATE FIELDS
+        private string _stimulus;
+        private int _stimulusLength;
+        private float _normMultiplier;
+        // L2O normalisation multiplier. Equals nLetterSlots / stimulusLength, 
         // or 1 if L2O_NORMALISATION = false,
         private float[] _outVisualFeatureLayer1; // stores VF state according to the input stimulus
-
         private float[] _outVisualFeatureLayer0; // stores VF state according to the input stimulus
-
         private float[] _netInputLetterLayer;
-        // arraysize equal to nSlots * nLetters to store net input to each letter node
-
+        // array length equal to nSlots * nLetters to store net input to each letter node
         private float[] _netInputOrtholexLayer;
         // store net input to each learned OL word node. Resized each time new node learned.
-
         private float[] _netInputPhonolexLayer; // stores net input to each PL word node
-
         private float[] _netInputPhonemeLayer;
-        // arraysize equal to nSlots * nPhonemes to store net input to each phoneme node
-
-        private float[] _actLetterLayer; // arraysize equal to nSlots * nLetters to store net input to each letter node
-
-        private float[] _actOrtholexLayer
-            ; // store activation of each learned OL word node. Resized each time new node learned.
-
+        // array length equal to nSlots * nPhonemes to store net input to each phoneme node
+        private float[] _actLetterLayer; // array length equal to nSlots * nLetters to store net input to each letter node
+        private float[] _actOrtholexLayer;
+        // store activation of each learned OL word node. Resized each time new node learned.
         private float[] _actPhonolexLayer; // stores activation of each PL word node
-
-        private float[] _actPhonemeLayer
-            ; // arraysize equal to nSlots * nPhonemes to store activation to each phoneme node
-
+        private float[] _actPhonemeLayer;
+        // array length equal to nSlots * nPhonemes to store activation to each phoneme node
         private float _actSemanticNode; // activation of the semantic node (which excites the semantic layer).
         // When random nodes are co-activated, they are assumed to have the same activation
         // as the correct node, and there is no feedback to the semantic layer,
         // so only keeping track of one value here.
 
-        // LEARNING PARAMETER FIELDS
+        /// LEARNING PARAMETER FIELDS
         private bool _learningOn; // turn off to prevent learning
-
         private bool _l2ONormalisation; // set to true to normalise input from L to O based on length of stimulus+blanks
-
-        private int _orthographicBlanks
-            ; // 0 = no blanks, 1 = 1 blank, 2 = enough blanks so that each Onode is 8 letters long.
+        private int _orthographicBlanks;
+        // 0 = no blanks, 1 = 1 blank, 2 = enough blanks so that each Onode is 8 letters long.
         // Examples: 0: "CAT", 1: "CAT+", 2: "CAT+++++"
-
         private int _nvFeatures; // number of visual features per letter
         private int _maxCycles; // max number of cycles before timeout
-
         private bool _printActivations; // set to true to print an activations file. slows down the simulation.     
         private float _minActivationReport; // minimum activation to get reported in the activations.txt file.
-
         private float _printedWordRecogThreshold;
         // OL node must be above this value for a printed word to be "recognized".
-
         private float _spokenWordRecogThreshold; // PL node mus be above this value for a spoken word to be "recognized".
         private float _semantic2PhonolexExcitation;
         private float _semantic2PhonolexInhibition;
         private float _contextInput2Semantic; // Analogous to visual features, but for context. "Contextual feature".
-
-        private int _printedWordFreqMultiplier
-            ; // Controls the rate at which printedWordFreq values are increased per exposure.
-
-        private int _numberOfSemanticRepsActivated
-            ; // Controls the number of semantic nodes (including the correct one corresponding to the input word)
-
+        private int _printedWordFreqMultiplier;
+        // Controls the rate at which printedWordFreq values are increased per exposure.
+        private int _numberOfSemanticRepsActivated;
+        // Controls the number of semantic nodes (including the correct one corresponding to the input word)
         //  that are activated for a simulation. E.g., if value is 3, then the correct semantic node plus
         //  two additional random words will receive activation.
         private string[] _context; // holds the input context
 
-        // DRC-1.2.1 PARAMETER FIELDS
+        /// DRC-1.2.1 PARAMETER FIELDS
         //General Parameters
         private float _activationRate;
-
         private float _frequencyScale;
         private float _minReadingPhonology;
-
         //Feature Level Parameters
         private float _featureLetterExcitation;
-
         private float _featureLetterInhibition;
-
         //Letter level Parameters
         private float _letterOrthLexExcitation;
-
         private float _letterOrthLexInhibition;
         private float _letterLateralInhibition;
-
         //Orthographic Lexicon (OrthLex) Parameters
         private float _orthLexPhonLexExcitation;
-
         private float _orthLexPhonLexInhibition;
         private float _orthLexLetterExcitation;
         private float _orthLexLetterInhibition;
         private float _orthLexLateralInhibition;
-
         //Phonological Lexicon (Phonlex) Parameters
         private float _phonLexPhonemeExcitation;
         private float _phonLexPhonemeInhibition;
         private float _phonLexOrthLexExcitation;
         private float _phonLexOrthLexInhibition;
         private float _phonLexLateralInhibition;
-
         //Phoneme Level Parameters
         private float _phonemePhonLexExcitation;
-
         private float _phonemePhonLexInhibition;
         private float _phonemeLateralInhibition;
         private float _phonemeUnsupportedDecay;
-
         //GPC Route Parameters
         private float _gpcPhonemeExcitation;
-
         private float _gpcCriticalPhonology;
         private int _gpcOnset;
 
@@ -415,21 +379,16 @@ namespace Learning_DRC
         // These avoid the need to recalculate the
         // same values over and over.
         private int _lettersLength; // number of letters + 1 for blankChar = 27 typically
-
         private int _phonemesLength; // number of phonemes + 1 for blankChar = 45 typically
-
         private int _printedWordsCount;
         // count of the printedWords list (must be recalculated before the start of each new simulated word.
-
         private int _spokenWordsLength; // length of the spokenWords array (number of known spoken words)
         private int _currentVFNode; // to avoid calculating slot*nVFeatures + currentFeature repeatedly
         private int _currentLetterNode; // to avoid calculating slot*lettersLength + currentLetter repeatedly
         private int _currentPhonemeNode; // to avoid calculating slot*phonemesLength + currentPhoneme repeatedly
-
         #endregion
 
         #region CONSTRUCTOR
-
         public LearningDRC(DirectoryInfo workingSubDir)
         {
             Timer.Start();
@@ -449,6 +408,61 @@ namespace Learning_DRC
             Timer.Reset();
         }
 
+        private void LoadProperties()
+        {
+            StreamReader streamR = null;
+            string line;
+
+            try
+            {
+                streamR = _fileProperties.OpenText();
+            }
+            catch
+            {
+                Console.WriteLine("Could not open properties file.");
+                Console.Write("Press a key to exit. ");
+                Console.ReadKey();
+                Environment.Exit(0);
+            }
+
+            do
+            {
+                line = streamR.ReadLine();
+                if (line == null)
+                    continue;
+
+                var splitline = line.Split('=');
+
+                switch (splitline[0])
+                {
+                    case "Name":
+                        _name = splitline[1];
+                        break;
+                    case "Version":
+                        _version = splitline[1];
+                        break;
+                    case "ReleaseDate":
+                        _releaseDate = splitline[1];
+                        break;
+                    case "Creator":
+                        _creator = splitline[1];
+                        break;
+                    case "Url":
+                        _url = splitline[1];
+                        break;
+                    case "DefaultNumOrthAnalysisUnits":
+                        _nLetterSlots = int.Parse(splitline[1]);
+                        break;
+                    case "DefaultNumPhonemeUnits":
+                        _nPhonemeSlots = int.Parse(splitline[1]);
+                        break;
+                    default:
+                        break;
+                }
+            } while (line != null);
+
+            streamR.Close();
+        }
 
         private void LoadDrc121Parameters()
         {
@@ -471,7 +485,7 @@ namespace Learning_DRC
             {
                 line = streamR.ReadLine();
 
-                if (line == null || line == "" || line[0] == '#')
+                if (string.IsNullOrEmpty(line) || line[0] == '#')
                     continue;
 
                 var splitline = line.Split(' ');
@@ -574,7 +588,6 @@ namespace Learning_DRC
             streamR.Close();
         }
 
-
         private void LoadLearningParameters()
         {
             StreamReader streamR = null;
@@ -596,7 +609,7 @@ namespace Learning_DRC
             {
                 line = streamR.ReadLine();
 
-                if (line == null || line == "" || line[0] == '#')
+                if (string.IsNullOrEmpty(line) || line[0] == '#')
                     continue;
 
                 var splitline = line.Split(' ');
@@ -665,64 +678,6 @@ namespace Learning_DRC
 
             streamR.Close();
         }
-
-
-        private void LoadProperties()
-        {
-            StreamReader streamR = null;
-            string line;
-
-            try
-            {
-                streamR = _fileProperties.OpenText();
-            }
-            catch
-            {
-                Console.WriteLine("Could not open properties file.");
-                Console.Write("Press a key to exit. ");
-                Console.ReadKey();
-                Environment.Exit(0);
-            }
-
-            do
-            {
-                line = streamR.ReadLine();
-                if (line == null)
-                    continue;
-
-                var splitline = line.Split('=');
-
-                switch (splitline[0])
-                {
-                    case "Name":
-                        _name = splitline[1];
-                        break;
-                    case "Version":
-                        _version = splitline[1];
-                        break;
-                    case "ReleaseDate":
-                        _releaseDate = splitline[1];
-                        break;
-                    case "Creator":
-                        _creator = splitline[1];
-                        break;
-                    case "Url":
-                        _url = splitline[1];
-                        break;
-                    case "DefaultNumOrthAnalysisUnits":
-                        _nLetterSlots = int.Parse(splitline[1]);
-                        break;
-                    case "DefaultNumPhonemeUnits":
-                        _nPhonemeSlots = int.Parse(splitline[1]);
-                        break;
-                    default:
-                        break;
-                }
-            } while (line != null);
-
-            streamR.Close();
-        }
-
 
         private void LoadLetters()
         {
@@ -800,10 +755,10 @@ namespace Learning_DRC
                 _vowelStatus[j] = lstVowelStatus[j];
         }
 
-
         private void LoadPhonemes()
         {
-            var lstPhonemes = new List<char>(); // list to load phonemes from file
+            var lstPhonemes = new List<char>();
+            // list to load phonemes from file
 
             StreamReader streamR = null;
             string line;
@@ -833,7 +788,6 @@ namespace Learning_DRC
 
             streamR.Close();
 
-            //create phoneme array, and store length
             _phonemes = new Dictionary<int, char>();
             _phonemesReverseDictionary = new Dictionary<char, int>();
             _phonemesLength = lstPhonemes.Count;
@@ -844,21 +798,21 @@ namespace Learning_DRC
             }
         }
 
-
-        // Load vocabulary from file vocabulary.
-        // Note: L-DRC uses the same vocabulary file as drc-1.2.1.
-        // The printed words are ignored by L-DRC, just looking
-        // to load the spoken words and their frequencies.
-        // NOTE: drc-1.2.1 ignores words that are >8letters in length.
-        // L-DRC, however, includes the spokenforms of these words in
-        // its phonological lexicon (an oversight, since the 9-letter
-        // orthographic forms are never presented during learning).
         private void LoadVocabulary()
         {
+            // Load vocabulary from file vocabulary.
+            // Note: ST-DRC uses the same vocabulary file as drc-1.2.1.
+            // The printed words are ignored by ST-DRC, just looking
+            // to load the spoken words and their frequencies.
+            // NOTE: drc-1.2.1 ignores words that are >8letters in length.
+            // ST-DRC, however, includes the spokenforms of these words in
+            // its phonological lexicon (an oversight, since the 9-letter
+            // orthographic forms are never presented during learning).
+
             // The format of each line in the vocabulary file is:
             // 0.printedWord 1.spokenWord 2."OP" 3.printedFreq 4.spokenFreq
 
-            // list to load spoken word vocabulary
+            // dictionaries to load spoken word vocabulary
             var loadedSpokenWords = new Dictionary<string, int>();
             var reverseLoadedSpokenWords = new Dictionary<int, string>();
             // list to load spoken word frequencies
@@ -912,15 +866,13 @@ namespace Learning_DRC
                 _spokenWordFreq[m] = lstSpokenWordFreq[m];
             }
 
-            // find max spoken word frequency
             _maxSpokenWordFreq = GetMaxIntFromArray(_spokenWordFreq);
 
-            // Need to add a single end of word character to each of the spoken words.
+            // Need to add a single end-of-word character to each of the spoken words.
             for (var m = 0; m < _spokenWords.Length; m++)
                 if (_spokenWords[m].Length < _nLetterSlots)
-                    _spokenWords[m] = _spokenWords[m] + "+";
+                    _spokenWords[m] = _spokenWords[m] + Blankchar;
         }
-
 
         private static int GetMaxIntFromArray(IList<int> ary)
         {
@@ -934,7 +886,6 @@ namespace Learning_DRC
                     max = ary[i];
             return max;
         }
-
 
         public void LoadGPCs(FileInfo gpcFile)
         {
@@ -964,7 +915,7 @@ namespace Learning_DRC
             do
             {
                 line = streamR.ReadLine();
-                if (line == null || line == "")
+                if (string.IsNullOrEmpty(line))
                     continue;
 
                 var splitline = line.Split(new[] {' '}, StringSplitOptions.RemoveEmptyEntries);
@@ -1033,7 +984,6 @@ namespace Learning_DRC
                 _outRules[z] = lstOutRules[z];
         }
 
-
         private void InitNetInputAndActivationLayerArrays()
         {
             _outVisualFeatureLayer1 = new float[_nLetterSlots * _nvFeatures];
@@ -1052,7 +1002,6 @@ namespace Learning_DRC
             _actPhonemeLayer = new float[_nPhonemeSlots * _phonemesLength];
         }
 
-
         private void InitVF2LetterWeights()
         {
             _vF0ToLetterWeights = new float[_nLetterSlots * _nvFeatures][];
@@ -1063,49 +1012,33 @@ namespace Learning_DRC
             for (var i = 0; i < _vF1ToLetterWeights.Length; i++)
                 _vF1ToLetterWeights[i] = new float[_nLetterSlots * _lettersLength];
 
-            // Loop across letter slots
             for (var i = 0; i < _nLetterSlots; i++)
-                // Loop across the number of letters in each slot (27)
-            for (var j = 0; j < _lettersLength; j++)
             {
-                _currentLetterNode = i * _lettersLength + j;
-
-                // Loop across the number of visual features in each slot (14).
-                for (var k = 0; k < _nvFeatures; k++)
+                for (var j = 0; j < _lettersLength; j++)
                 {
-                    _currentVFNode = i * _nvFeatures + k;
-
-                    if (_letterFeatures[j][k] == 1)
+                    _currentLetterNode = i * _lettersLength + j;
+                    for (var k = 0; k < _nvFeatures; k++)
                     {
-                        _vF1ToLetterWeights[_currentVFNode][_currentLetterNode] = _featureLetterExcitation;
-                        _vF0ToLetterWeights[_currentVFNode][_currentLetterNode] = _featureLetterInhibition;
-                    }
-                    else
-                    {
-                        _vF1ToLetterWeights[_currentVFNode][_currentLetterNode] = _featureLetterInhibition;
-                        _vF0ToLetterWeights[_currentVFNode][_currentLetterNode] = _featureLetterExcitation;
-                    }
-                } // nvFeatures loop
-            } // lettersLength loop
+                        _currentVFNode = i * _nvFeatures + k;
+                        if (_letterFeatures[j][k] == 1)
+                        {
+                            _vF1ToLetterWeights[_currentVFNode][_currentLetterNode] = _featureLetterExcitation;
+                            _vF0ToLetterWeights[_currentVFNode][_currentLetterNode] = _featureLetterInhibition;
+                        }
+                        else
+                        {
+                            _vF1ToLetterWeights[_currentVFNode][_currentLetterNode] = _featureLetterInhibition;
+                            _vF0ToLetterWeights[_currentVFNode][_currentLetterNode] = _featureLetterExcitation;
+                        }
+                    } // nvFeatures loop
+                } // lettersLength loop
+            } // slots loop
         }
 
-
-        public void ClearOrthographicLexicon()
-        {
-            _printedWords = new List<string>();
-            _printedWordFreq = new List<int>();
-            _spokenWordsForEachPrintedWord = new List<List<int>>();
-            _printedWordsForEachSpokenWord = new List<int>[_spokenWordsLength];
-            _printedWordsCount = 0;
-            for (var m = 0; m < _spokenWordsLength; m++)
-                _printedWordsForEachSpokenWord[m] = new List<int>();
-        }
-
-
-        // Format for orthographicknowledge.txt file:
-        // 1. "WORD"  2. printedword  3. printedwrd index  4. printedwrd freq  5. spokenword  6. spokenwrd index
         public void LoadOrthographicLexiconFromFile(DirectoryInfo workingSubDir)
         {
+            // Format for orthographicknowledge.txt file:
+            // 1. "WORD"  2. printedword  3. printedwrd index  4. printedwrd freq  5. spokenword  6. spokenwrd index
             StreamReader streamR;
             string line;
             var fileOrthographicKnowledge =
@@ -1170,7 +1103,6 @@ namespace Learning_DRC
                             Environment.Exit(0);
                         }
                         break;
-
                     default:
                         break;
                 }
@@ -1179,7 +1111,6 @@ namespace Learning_DRC
             _printedWordsCount = _printedWords.Count;
             streamR.Close();
         }
-
 
         public void CreateCFSArrays()
         {
@@ -1198,11 +1129,9 @@ namespace Learning_DRC
                 _spokenCFS[m] = (float) (Math.Log10(_spokenWordFreq[m] + 1) / Math.Log10(_maxSpokenWordFreq + 1) - 1) *
                                _frequencyScale;
         }
-
         #endregion
 
         #region GENERAL METHODS
-
         public string[] Simulate(string newStimulus, string contextualInput, DirectoryInfo workingSubDir)
         {
             var cycles = 0;
@@ -1237,10 +1166,8 @@ namespace Learning_DRC
             // Called at the start of every new stimulus simulation, to account for any learning
             // that may have been done with previous stimuli.
             ResizeOrtholexArrays();
-
             ResetActivationsToZero();
             ResetGPCRoute();
-
             ClampVisualFeatures();
 
             //Create the correct phonological lexicon context by determining what
@@ -1273,14 +1200,13 @@ namespace Learning_DRC
 
                 ProcessSingleCycle(cycles);
                 completed = CheckCompletion() || cycles == _maxCycles;
-
                 // terminate simulation if maxCycles reached.
             } while (completed == false);
 
             // Learning is done here
             if (_learningOn)
             {
-                Learning(workingSubDir);
+                AttemptLearningForCurrentStimulus(workingSubDir);
                 SaveLearnedOrthographicVocabulary(workingSubDir);
             }
 
@@ -1297,11 +1223,6 @@ namespace Learning_DRC
             return output;
         }
 
-
-        /// <summary>
-        ///     Resize netInputOrtholexLayer and actOrtholexLayer arrays
-        ///     based on whether or not new words were added in previous sim.
-        /// </summary>
         private void ResizeOrtholexArrays()
         {
             // Important: recalculating printedWordsCount
@@ -1406,29 +1327,16 @@ namespace Learning_DRC
             }
         }
 
-
-        /// <summary>
-        ///     Called by the Simulate method. Used to process a single cycle
-        ///     of the simulation, calculating net inputs, epsilons and
-        ///     activations across the whole model for a single cycle.
-        /// </summary>
-        /// <param name="cycles"></param>
         private void ProcessSingleCycle(int cycles)
         {
-            ProcessNetInputs();
+            CalculateNetInputsForCurrentCycle();
             ProcessGPCRoute(cycles);
-            ProcessNewActivations();
+            CalculateNewActivationsForCurrentCycle();
             ClipActivations();
             if (_printActivations)
                 PrintRelevantActivationsToFile(cycles);
         }
 
-
-        /// <summary>
-        ///     Gets the output phoneme string by choosing
-        ///     the maximally activated phoneme from each slot.
-        /// </summary>
-        /// <returns>output phoneme string</returns>
         private string GetOutput()
         {
             var output = new StringBuilder();
@@ -1459,12 +1367,6 @@ namespace Learning_DRC
             return output.ToString();
         }
 
-
-        /// <summary>
-        ///     Checks maximally activated phonemes in each slot,
-        ///     Returns true if each is above minReadingPhonology.
-        /// </summary>
-        /// <returns>Returns true/false, simulation complete</returns>
         private bool CheckCompletion()
         {
             for (var i = 0; i < _nPhonemeSlots; i++)
@@ -1495,7 +1397,6 @@ namespace Learning_DRC
             }
             return true;
         }
-
 
         public void PrintParametersToFile(FileInfo printFile)
         {
@@ -1558,12 +1459,6 @@ namespace Learning_DRC
             streamW.Close();
         }
 
-
-        /// <summary>
-        ///     Method prints activations of nodes that are above a particular threshhold
-        ///     each cycle. Also reports GPC route activity.
-        /// </summary>
-        /// <param name="cycles"></param>
         private void PrintRelevantActivationsToFile(int cycles)
         {
             StreamWriter streamW = null;
@@ -1739,16 +1634,11 @@ namespace Learning_DRC
 
         #region LEXICAL ROUTE METHODS
 
-        /// <summary>
-        ///     Calculate net inputs for a single cycle.
-        /// </summary>
-        private void ProcessNetInputs()
+        private void CalculateNetInputsForCurrentCycle()
         {
             var netOrthlexToLetterInhibition = 0f;
-
             var netPhonemeToPhonlexInhibition = new float[_nPhonemeSlots];
             var netPhonLexToPhonemeInhibition = new float[_nPhonemeSlots];
-
             var netLetterLatInhibition = new float[_nLetterSlots];
             var netPhonolexLatInhibition = 0f;
             var netPhonemeLatInhibition = new float[_nPhonemeSlots];
@@ -1972,11 +1862,7 @@ namespace Learning_DRC
                     _netInputPhonolexLayer[m] += _actSemanticNode * _semantic2PhonolexInhibition;
         }
 
-
-        /// <summary>
-        ///     Calculate new activation levels after a single cycle.
-        /// </summary>
-        private void ProcessNewActivations()
+        private void CalculateNewActivationsForCurrentCycle()
         {
             var epsilonLetterLayer = new float[_nLetterSlots * _lettersLength];
             var epsilonOrtholexLayer = new float[_printedWordsCount];
@@ -2045,10 +1931,6 @@ namespace Learning_DRC
             _actSemanticNode += epsilonContextNode * _activationRate;
         }
 
-
-        /// <summary>
-        ///     Ensures all activations stay between 0 and 1.
-        /// </summary>
         private void ClipActivations()
         {
             for (var i = 0; i < _nLetterSlots; i++)
@@ -2082,15 +1964,8 @@ namespace Learning_DRC
 
         #region LEARNING METHODS
 
-        /// <summary>
-        ///     If the stimulus was a recognized spoken word, and the stimulus is novel, then
-        ///     this method adds a new OL node and creates new connections between this node and the
-        ///     PL layer and the Letter layer.
-        ///     If the stimulus was a recognized spoken AND printed word, then this method
-        ///     updates the excitations between the relevant OL node and the PL layer and
-        ///     the letter layer.
-        /// </summary>
-        private void Learning(DirectoryInfo workingSubDir)
+
+        private void AttemptLearningForCurrentStimulus(FileSystemInfo workingSubDir)
         {
             var maxActivatedOWord = 0;
             var maxActivatedPWord = 0;
@@ -2128,32 +2003,25 @@ namespace Learning_DRC
                 LearnExistingOrthographicWord(maxActivatedOWord, maxActivatedPWord, workingSubDir);
         }
 
-        /// <summary>
-        ///     Subroutine of the Learning() method, that handles the learning of a new OL word.
-        ///     Called if there is a PL node above the threshold, but no OL node above the
-        ///     threshold (ie its a known spoken word, but there is no corresponding printed word.
-        ///     To add a new OL word node, need to:
-        ///     a) add the most activated letter from each slot as a new word to the PrintedWords list
-        ///     b) Add a new item to printedWordsForEachSpokenWord, connecting the relevant spoken
-        ///     word to the newly minted printed word
-        ///     c) Add a new item to spokenWordsForEachPrintedWord, connecting the newly minted printed
-        ///     word to the most active spoken word
-        ///     d) Add a new item to printedWordFreq, with starting value of printedWordFreqMultiplier
-        ///     e) Recalculate maxPrintedWordFreq, and printedCFS values
-        /// </summary>
-        /// <param name="maxActivatedPWord"></param>
-        /// <param name="workingSubDir"></param>
         private void LearnNewOrthographicWord(int maxActivatedPWord, FileSystemInfo workingSubDir)
         {
+            // Called if there is a PL node above the threshold, but no OL node above the
+            // threshold (ie stimulus correspondes to a known spoken word, but there is no corresponding printed word.
+            // To add a new OL word node, need to:
+            // a) add the most activated letter from each slot as a new word to the PrintedWords list
+            // b) Add a new item to printedWordsForEachSpokenWord, connecting the relevant spoken
+            // word to the newly minted printed word
+            // c) Add a new item to spokenWordsForEachPrintedWord, connecting the newly minted printed
+            // word to the most active spoken word
+            // d) Add a new item to printedWordFreq, with starting value of printedWordFreqMultiplier
+            // e) Recalculate maxPrintedWordFreq, and printedCFS values
             var path = Path.Combine(workingSubDir.FullName, "nodeUpdateLog.txt");
             var streamW = new StreamWriter(path, true);
             var blankSeen = false;
             var newPrintedWord = new StringBuilder();
 
             // a) Add the most active letters as a new printedWord
-
             // First, need to find maximally activated letter in each slot
-
             for (var i = 0; i < _nLetterSlots; i++)
             {
                 if (blankSeen)
@@ -2207,23 +2075,17 @@ namespace Learning_DRC
             streamW.Close();
         }
 
-
-        /// <summary>
-        ///     Subroutine of the Learning() method, that handles the updating of frequencies
-        ///     when improving the learning of an existing word.
-        ///     Called if there is a PL node above the threshold, and also an OL node about threshold.
-        ///     Need to:
-        ///     a) check if it is a novel homograph
-        ///     b) update printedWordFreq
-        ///     c) re-calculate maxPrintedWordFreq
-        ///     d) re-calculate all printedCFSs
-        /// </summary>
-        /// <param name="maxActivatedOWord"></param>
-        /// <param name="maxActivatedPWord"></param>
-        /// <param name="workingSubDir"></param>
         private void LearnExistingOrthographicWord(int maxActivatedOWord, int maxActivatedPWord,
             FileSystemInfo workingSubDir)
         {
+            // Subroutine of the AttemptLearningForCurrentStimulus() method, that handles the updating of frequencies
+            // when improving the learning of an existing word.
+            // Called if there is a PL node above the threshold, and also an OL node about threshold.
+            // Need to:
+            // a) check if it is a novel homograph
+            // b) update printedWordFreq
+            // c) re-calculate maxPrintedWordFreq
+            // d) re-calculate all printedCFSs
             var path = Path.Combine(workingSubDir.FullName, "nodeUpdateLog.txt");
             var streamW = new StreamWriter(path, true);
             var novelHomograph = true;
@@ -2246,15 +2108,12 @@ namespace Learning_DRC
             }
 
             // b) update printedWordFreq
-
             _printedWordFreq[maxActivatedOWord] += _printedWordFreqMultiplier;
 
             // c) re-calculate maxPrintedWordFreq
-
             _maxPrintedWordFreq = GetMaxIntFromArray(_printedWordFreq.ToArray());
 
             // d) re-calculate all printedCFSs
-
             _printedCFS = new float[_printedWordsCount];
 
             for (var l = 0; l < _printedWordsCount; l++)
@@ -2272,14 +2131,12 @@ namespace Learning_DRC
         #endregion
 
         #region GPC ROUTE METHODS
-
-        // The GPCRoute algorithms are the most difficult
-        // to follow. Rough reading ahead.
-
-        /// <summary>
-        ///     Reset currentRightmostPhoneme and currentGPCInput,
-        ///     ready to process a new stimulus.
-        /// </summary>
+        /*
+         * ################################################
+         * The GPCRoute algorithms are the most difficult
+         * to follow. Rough reading ahead.
+         * ################################################
+         */
         private void ResetGPCRoute()
         {
             _currentRightmostPhoneme = 0;
@@ -2287,28 +2144,15 @@ namespace Learning_DRC
             _lastSlotSeen = false;
         }
 
-        /// <summary>
-        ///     Called by ProcessSingleCycle(). Handles GPC Route processing,
-        ///     including parsing, GPC Route output, and adding this output
-        ///     to the netinput of phoneme level nodes.
-        /// </summary>
         private void ProcessGPCRoute(int cycles)
         {
             // Don't start GPC route processing until a set number
             // of cycles (equal to gpcOnset) has passed.
-            if (cycles >= _gpcOnset)
-            {
-                var rulesApplied = GraphemeParsing(cycles);
-                AddGPCActivationToPhonemes(rulesApplied, cycles);
-            }
+            if (cycles < _gpcOnset) return;
+            var rulesApplied = GraphemeParsing(cycles);
+            AddGPCActivationToPhonemes(rulesApplied, cycles);
         }
 
-
-        /// <summary>
-        ///     Parse currentGPCInput and determines the GPC rules that apply.
-        /// </summary>
-        /// <param name="cycles"></param>
-        /// <returns>List of GPC Rules that apply.</returns>
         private List<GPCRule> GraphemeParsing(int cycles)
         {
             int maxLetterInSlot;
@@ -2470,12 +2314,6 @@ namespace Learning_DRC
             return rulesApplied;
         }
 
-        /// <summary>
-        ///     Returns the number of letters in a split grapheme after the split.
-        ///     This method is used to assist in calculating wordPosition.
-        /// </summary>
-        /// <param name="grapheme"></param>
-        /// <returns></returns>
         private static int GetLettersAfterSplit(string grapheme)
         {
             var lettersAfterSplit = 0;
@@ -2488,53 +2326,38 @@ namespace Learning_DRC
             return lettersAfterSplit;
         }
 
-
-        /// <summary>
-        ///     Using the list of GPC rules that apply, this method ensures that letter
-        ///     activation is contributed to the phoneme level via the GPC route.
-        ///     The logic in this method is complex. In summary: step through the rules, and
-        ///     find the average activation of the letters in each rule, and contribute that
-        ///     activation to the phoneme(s - will be more than one phoneme for mphon rules)
-        ///     according to phoneme excitation = average letter act * gpcphonemeexcitation.
-        ///     Need to ignore the letters in the grapheme of the rule that are either square
-        ///     brackets (which denote context letters) or are inside the square brackets.
-        ///     Also need to keep track of split graphemes - if a split grapheme is encountered,
-        ///     the very next grapheme must be the single-letter grapheme that is encompassed by
-        ///     the split grapheme. Set encompassedLetterPosition to the current letter slot
-        ///     to make sure that the next grapheme is processed in the correct letter position,
-        ///     before finishing off the rest of the letters in the split grapheme that come after
-        ///     the '.'.
-        /// </summary>
-        /// <param name="rulesApplied"></param>
         private void AddGPCActivationToPhonemes(List<GPCRule> rulesApplied, int cycles)
         {
-            bool
-                insideContextBrackets; // keeps track of when stepping across context letters rather than grapheme letters in the rule.
-            float averageLetterActivation; // average activation across letters in a grapheme
-            float totalLetterActivation; // summed activation across letters in a grapheme
-            int numberLettersInGrapheme; // counts the number of letters in a grapheme
-            int currentPhonemeSlot; // used to keep track of the phoneme slots to which each grapheme corresponds.
-            int currentLetterSlot; // used to keep track of the letter slot.
-            int encompassedLetterPosition; // used to keep track while calculating splitGrapheme activations
-            int encompassedContextLetterPosition;
-            string phonemesActivated;
-
-            insideContextBrackets = false;
-            currentPhonemeSlot = 0;
-            currentLetterSlot = 0;
-            encompassedLetterPosition = 0;
-            encompassedContextLetterPosition = 0;
-
+            /*
+             * Using the list of GPC rules that apply, this method ensures that letter
+             * activation is contributed to the phoneme level via the GPC route.
+             * The logic in this method is complex. In summary: step through the rules, and
+             * find the average activation of the letters in each rule, and contribute that
+             * activation to the phoneme(s - will be more than one phoneme for mphon rules)
+             * according to phoneme excitation = average letter act * gpcphonemeexcitation.
+             * Need to ignore the letters in the grapheme of the rule that are either square
+             * brackets (which denote context letters) or are inside the square brackets.
+             * Also need to keep track of split graphemes - if a split grapheme is encountered,
+             * the very next grapheme must be the single-letter grapheme that is encompassed by
+             * the split grapheme. Set encompassedLetterPosition to the current letter slot
+             * to make sure that the next grapheme is processed in the correct letter position,
+             * before finishing off the rest of the letters in the split grapheme that come after
+             * the '.'.
+             */
+            var ruleParserInsideContextBrackets = false;
+            var currentPhonemeSlot = 0;
+            var currentLetterSlot = 0;
+            var encompassedLetterPosition = 0;
+            var encompassedContextLetterPosition = 0;
             var sw = new StreamWriter(_fileActs.FullName, true);
-
-            phonemesActivated = ApplyOutRules(rulesApplied, cycles, sw);
+            var phonemesActivated = ApplyOutRules(rulesApplied, cycles, sw);
 
             for (var z = 0; z < rulesApplied.Count; z++)
             {
                 var targetGraphemeSeen = false;
                 var contextLetterCount = 0;
-                totalLetterActivation = 0f;
-                numberLettersInGrapheme = 0;
+                var totalLetterActivationForGrapheme = 0f;
+                var numberLettersInGrapheme = 0;
 
                 // If the weird context rule involving silent h is present,
                 // it will be the final rule, and can be ignored without
@@ -2552,7 +2375,7 @@ namespace Learning_DRC
 
                 if (encompassedLetterPosition != 0)
                 {
-                    totalLetterActivation =
+                    totalLetterActivationForGrapheme =
                         _actLetterLayer[
                             encompassedLetterPosition * _lettersLength +
                             _lettersReverseDictionary[rulesApplied[z].RGrapheme[0]]];
@@ -2561,7 +2384,7 @@ namespace Learning_DRC
                 }
                 else if (encompassedContextLetterPosition != 0)
                 {
-                    totalLetterActivation =
+                    totalLetterActivationForGrapheme =
                         _actLetterLayer[
                             encompassedContextLetterPosition * _lettersLength +
                             _lettersReverseDictionary[rulesApplied[z].RGrapheme[0]]];
@@ -2575,10 +2398,10 @@ namespace Learning_DRC
                         switch (rulesApplied[z].RGrapheme[ltr])
                         {
                             case '[':
-                                insideContextBrackets = true;
+                                ruleParserInsideContextBrackets = true;
                                 continue;
                             case ']':
-                                insideContextBrackets = false;
+                                ruleParserInsideContextBrackets = false;
                                 if (ltr == rulesApplied[z].RGrapheme.Length - 1)
                                 {
                                     encompassedContextLetterPosition = 0;
@@ -2592,7 +2415,7 @@ namespace Learning_DRC
                                     encompassedLetterPosition = currentLetterSlot;
                                 break;
                             default:
-                                if (insideContextBrackets)
+                                if (ruleParserInsideContextBrackets)
                                 {
                                     if (targetGraphemeSeen &&
                                         rulesApplied[z].RGrapheme[ltr] != '\\' &&
@@ -2606,7 +2429,7 @@ namespace Learning_DRC
                                 }
 
                                 targetGraphemeSeen = true;
-                                totalLetterActivation +=
+                                totalLetterActivationForGrapheme +=
                                     _actLetterLayer[
                                         currentLetterSlot * _lettersLength +
                                         _lettersReverseDictionary[rulesApplied[z].RGrapheme[ltr]]];
@@ -2616,10 +2439,10 @@ namespace Learning_DRC
                         currentLetterSlot++;
                     }
                 }
-                averageLetterActivation = totalLetterActivation / numberLettersInGrapheme;
+                var avgLetterActivationForGrapheme = totalLetterActivationForGrapheme / numberLettersInGrapheme;
 
                 if (_printActivations)
-                    sw.WriteLine("Cycle{0}\tGPC{1}\t{2}\t{3}\t{4}\t{5}", cycles, z, averageLetterActivation,
+                    sw.WriteLine("Cycle{0}\tGPC{1}\t{2}\t{3}\t{4}\t{5}", cycles, z, avgLetterActivationForGrapheme,
                         rulesApplied[z].GetPositionCharacter(), rulesApplied[z].RGrapheme, rulesApplied[z].RPhoneme);
 
                 foreach (var ph in rulesApplied[z].RPhoneme)
@@ -2627,7 +2450,7 @@ namespace Learning_DRC
                     _netInputPhonemeLayer[
                             currentPhonemeSlot * _phonemesLength +
                             _phonemesReverseDictionary[phonemesActivated[currentPhonemeSlot]]] +=
-                        averageLetterActivation * _gpcPhonemeExcitation;
+                        avgLetterActivationForGrapheme * _gpcPhonemeExcitation;
                     currentPhonemeSlot++;
                 }
             }
@@ -2635,22 +2458,8 @@ namespace Learning_DRC
             sw.Close();
         }
 
-
-        /// <summary>
-        ///     Searches the phonemes produced by the rules applied, looking for
-        ///     instances where an outrule should be used to change activated phonemes.
-        /// </summary>
-        /// <param name="rulesApplied"></param>
-        /// <param name="cycles"></param>
-        /// <returns>string of phonemes to be activated in the phoneme layer</returns>
-        private string ApplyOutRules(List<GPCRule> rulesApplied, int cycles, StreamWriter sw)
+        private string ApplyOutRules(IList<GPCRule> rulesApplied, int cycles, TextWriter sw)
         {
-            bool insideContextBrackets;
-            bool preContextFound;
-            bool postContextFound;
-            bool affectedPhonemeSeen;
-            bool affectedPhonemeMatch;
-            bool outRuleApplied;
             var preOutRulesPhonemes = new StringBuilder();
             var afterOutRulesPhonemes = new StringBuilder();
             var thisPhoneme = 0;
@@ -2678,22 +2487,20 @@ namespace Learning_DRC
                 //loop through phonemes in each rule applied
                 for (var ph = 0; ph < rulesApplied[z].RPhoneme.Length; ph++)
                 {
-                    outRuleApplied = false;
+                    var outRuleApplied = false;
 
                     //loop through outrules
-                    for (var thisOutRule = 0; thisOutRule < _outRules.Length; thisOutRule++)
+                    foreach (var outRule in _outRules)
                     {
-                        insideContextBrackets = false;
-                        preContextFound = false;
-                        postContextFound = false;
-                        affectedPhonemeSeen = false;
-                        affectedPhonemeMatch = false;
+                        var insideContextBrackets = false;
+                        var preContextFound = false;
+                        var postContextFound = false;
+                        var affectedPhonemeSeen = false;
+                        var affectedPhonemeMatch = false;
 
                         //loop through each char in the output rule input string
-                        for (var thisOutRuleChar = 0;
-                            thisOutRuleChar < _outRules[thisOutRule].RGrapheme.Length;
-                            thisOutRuleChar++)
-                            switch (_outRules[thisOutRule].RGrapheme[thisOutRuleChar])
+                        foreach (var outRuleChar in outRule.RGrapheme)
+                            switch (outRuleChar)
                             {
                                 case '[':
                                     insideContextBrackets = true;
@@ -2706,13 +2513,13 @@ namespace Learning_DRC
                                     {
                                         // if not at start of phoneme string, and previous phoneme matches preContextPhoneme, then a preContext has been found
                                         if (thisPhoneme != 0)
-                                            if (_outRules[thisOutRule].RGrapheme[thisOutRuleChar] ==
+                                            if (outRuleChar ==
                                                 preOutRulesPhonemes[thisPhoneme - 1] &&
                                                 affectedPhonemeSeen == false)
                                                 preContextFound = true;
                                         // if not at end of phoneme string, and the next phoneme matches a postContextPhoneme, then a postContext has been found
                                         if (thisPhoneme != preOutRulesPhonemes.Length - 1)
-                                            if (_outRules[thisOutRule].RGrapheme[thisOutRuleChar] ==
+                                            if (outRuleChar ==
                                                 preOutRulesPhonemes[thisPhoneme + 1] &&
                                                 affectedPhonemeSeen)
                                                 postContextFound = true;
@@ -2722,9 +2529,9 @@ namespace Learning_DRC
                                         affectedPhonemeSeen = true;
 
                                         if (preOutRulesPhonemes[thisPhoneme] !=
-                                            _outRules[thisOutRule].RGrapheme[thisOutRuleChar])
+                                            outRuleChar)
                                             continue;
-                                        switch (_outRules[thisOutRule].RPosition)
+                                        switch (outRule.RPosition)
                                         {
                                             case GPCRule.RulePosition.Beginning:
                                                 if (thisPhoneme != 0)
@@ -2765,13 +2572,13 @@ namespace Learning_DRC
                             (preContextFound || postContextFound))
                         {
                             outRuleApplied = true;
-                            afterOutRulesPhonemes.Append(_outRules[thisOutRule].RPhoneme);
+                            afterOutRulesPhonemes.Append(outRule.RPhoneme);
                             // rule found and applied. stop looping through out rules, and move on to next phoneme.
 
                             if (_printActivations)
                                 sw.WriteLine("Cycle{0}\tOUT{1}\t{2}\t{3}\t{4}", cycles, z,
-                                    _outRules[thisOutRule].GetPositionCharacter(), _outRules[thisOutRule].RGrapheme,
-                                    _outRules[thisOutRule].RPhoneme);
+                                    outRule.GetPositionCharacter(), outRule.RGrapheme,
+                                    outRule.RPhoneme);
                             break;
                         }
                     }
@@ -2785,18 +2592,14 @@ namespace Learning_DRC
             return afterOutRulesPhonemes.ToString();
         }
 
-
-        /// <summary>
-        ///     Counts relevant letters in the grapheme of the rule just applied,
-        ///     and modifies the word position accordingly, so that for ongoing
-        ///     parsing, the parser will know what part of the word it is up to
-        ///     and know if it should be looking for beginning, middle, or end rules.
-        /// </summary>
-        /// <param name="rule"></param>
-        /// <param name="wordPosition"></param>
-        /// <returns>Integer for word position.</returns>
         private static int UpdateWordPosition(GPCRule rule, int wordPosition)
         {
+            /*
+             * Counts relevant letters in the grapheme of the rule just applied,
+             * and modifies the word position accordingly, so that for ongoing
+             * parsing, the parser will know what part of the word it is up to
+             * and know if it should be looking for beginning, middle, or end rules.
+             */
             var insideContextBrackets = false;
             var wp = wordPosition;
             for (var ltr = 0; ltr < rule.RGrapheme.Length; ltr++)
@@ -2823,15 +2626,10 @@ namespace Learning_DRC
             return wp;
         }
 
-
-        /// <summary>
-        ///     Removes the letters in the grapheme of the identified GPC rule from unconsumedLetters.
-        /// </summary>
-        /// <param name="rule"></param>
-        /// <param name="unconsumedLetters"></param>
-        /// <returns>String - remaining unconsumed letters, if any ("" returned if none left).</returns>
         private static string RemoveLetters(GPCRule rule, string unconsumedLetters)
         {
+            // Removes the letters in the grapheme of the identified GPC rule from unconsumedLetters.
+
             var newUnconsumedLetters = unconsumedLetters;
             var insideContextBrackets = false;
             var positionInUnCLetters = 0;
@@ -2875,22 +2673,17 @@ namespace Learning_DRC
             return newUnconsumedLetters;
         }
 
-
-        /// <summary>
-        ///     Search for multi-rule in the remaining letters of the input.
-        /// </summary>
-        /// <param name="unconsumedLetters"></param>
-        /// <param name="wordPosition"></param>
-        /// <returns>Returns GPC rule if one is found, otherwise returns null</returns>
         private GPCRule Search4Multi(string unconsumedLetters, int wordPosition)
         {
-            // if rule is too small to be a multi-rule, then return null.
-            // this still allows for the strange rules whose graphemes start with .
-            // (e.g. end .ge  _) which are found when only two letters are present,
-            // because these rules are end rules, and so the blankChar will be present
-            // to make up 3 characters. However, this is not the case when it the number
-            // of letters in the stimulus = the number of letter slots - no room for a
-            // blank then. need to include code for this special case.
+            /*
+             * if rule is too small to be a multi-rule, then return null.
+             * this still allows for the strange rules whose graphemes start with .
+             * (e.g. end .ge  _) which are found when only two letters are present,
+             * because these rules are end rules, and so the blankChar will be present
+             * to make up 3 characters. However, this is not the case when it the number
+             * of letters in the stimulus = the number of letter slots - no room for a
+             * blank then. need to include code for this special case.
+             */
             if (unconsumedLetters.Length < 3 && _stimulusLength != _nLetterSlots)
                 return null;
 
@@ -2898,21 +2691,21 @@ namespace Learning_DRC
                 return null;
 
             //loop through all multirules, and return the first matching rule found.
-            for (var z = 0; z < _multiRules.Length; z++)
+            foreach (var multiRule in _multiRules)
             {
                 var dotStep = 0;
 
                 if (_stimulusLength != _nLetterSlots)
                 {
-                    if (_multiRules[z].RGrapheme.Length > unconsumedLetters.Length)
+                    if (multiRule.RGrapheme.Length > unconsumedLetters.Length)
                         continue; // skip if grapheme is too big
                 }
                 else // if stimulus.Length = nLetterSlots
                 {
-                    if (_multiRules[z].RGrapheme.Length > unconsumedLetters.Length + 1)
+                    if (multiRule.RGrapheme.Length > unconsumedLetters.Length + 1)
                         continue; // for full-span stimuli, skip if grapheme is more than 1 letter too long
-                    if (_multiRules[z].RGrapheme.Length == unconsumedLetters.Length + 1 &&
-                        (_multiRules[z].RGrapheme[0] != '.' || wordPosition + unconsumedLetters.Length != _nLetterSlots))
+                    if (multiRule.RGrapheme.Length == unconsumedLetters.Length + 1 &&
+                        (multiRule.RGrapheme[0] != '.' || wordPosition + unconsumedLetters.Length != _nLetterSlots))
                         continue; // for full-span stimuli that are 1-letter too long, skip if not at end or not a starting '.' rule
                 }
 
@@ -2920,10 +2713,10 @@ namespace Learning_DRC
                 // on a particular letter, in which case we know it is false and move on to the next rule.
                 var ruleFound = true;
 
-                for (var ltr = 0; ltr < _multiRules[z].RGrapheme.Length; ltr++)
+                for (var ltr = 0; ltr < multiRule.RGrapheme.Length; ltr++)
                 {
                     // move on to next letter if it is the space in a split-grapheme rule.
-                    if (_multiRules[z].RGrapheme[ltr] == '.')
+                    if (multiRule.RGrapheme[ltr] == '.')
                     {
                         //check if . is at the start of the grapheme, and that wordPosition
                         // is not at the start of the word. otherwise, the weird rules where
@@ -2932,7 +2725,7 @@ namespace Learning_DRC
                             dotStep = 1;
                         continue;
                     }
-                    if (_multiRules[z].RGrapheme[ltr] != unconsumedLetters[ltr - dotStep])
+                    if (multiRule.RGrapheme[ltr] != unconsumedLetters[ltr - dotStep])
                     {
                         ruleFound = false;
                         break;
@@ -2940,10 +2733,10 @@ namespace Learning_DRC
                 }
                 if (ruleFound)
                     if (wordPosition == 0)
-                        switch (_multiRules[z].RPosition)
+                        switch (multiRule.RPosition)
                         {
                             case GPCRule.RulePosition.Beginning:
-                                return _multiRules[z];
+                                return multiRule;
 
                             case GPCRule.RulePosition.Middle:
                                 // candidate multirule doesn't apply if at the 0 position, move on.
@@ -2954,10 +2747,10 @@ namespace Learning_DRC
                                 break;
 
                             case GPCRule.RulePosition.All:
-                                return _multiRules[z];
+                                return multiRule;
                         }
                     else
-                        switch (_multiRules[z].RPosition)
+                        switch (multiRule.RPosition)
                         {
                             case GPCRule.RulePosition.Beginning:
                                 //candidate multirule doesn't apply because we are no longer
@@ -2971,21 +2764,21 @@ namespace Learning_DRC
                                 // correspond to a middle phoneme (graphemes starting with '.' not ok).
                                 if (unconsumedLetters.Last() == Blankchar)
                                 {
-                                    if (_multiRules[z].RGrapheme.Length < unconsumedLetters.Length - 1 ||
-                                        _multiRules[z].RGrapheme.Length == unconsumedLetters.Length - 1 &&
-                                        _multiRules[z].RGrapheme.Contains('.') && _multiRules[z].RGrapheme[0] != '.')
-                                        return _multiRules[z];
+                                    if (multiRule.RGrapheme.Length < unconsumedLetters.Length - 1 ||
+                                        multiRule.RGrapheme.Length == unconsumedLetters.Length - 1 &&
+                                        multiRule.RGrapheme.Contains('.') && multiRule.RGrapheme[0] != '.')
+                                        return multiRule;
                                     break;
                                 }
                                 else if (_lastSlotSeen)
                                 {
-                                    if (_multiRules[z].RGrapheme.Length < unconsumedLetters.Length)
-                                        return _multiRules[z];
+                                    if (multiRule.RGrapheme.Length < unconsumedLetters.Length)
+                                        return multiRule;
                                     break;
                                 }
                                 else
                                 {
-                                    return _multiRules[z];
+                                    return multiRule;
                                 }
 
                             case GPCRule.RulePosition.End:
@@ -2993,18 +2786,18 @@ namespace Learning_DRC
                                 // stretches all the way to the end of the unconsumed letters.
                                 if (unconsumedLetters.Last() == Blankchar)
                                 {
-                                    if (_multiRules[z].RGrapheme.Length == unconsumedLetters.Length - 1 + dotStep)
-                                        return _multiRules[z];
+                                    if (multiRule.RGrapheme.Length == unconsumedLetters.Length - 1 + dotStep)
+                                        return multiRule;
                                 }
                                 else if (_lastSlotSeen)
                                 {
-                                    if (_multiRules[z].RGrapheme.Length == unconsumedLetters.Length + dotStep)
-                                        return _multiRules[z];
+                                    if (multiRule.RGrapheme.Length == unconsumedLetters.Length + dotStep)
+                                        return multiRule;
                                 }
                                 break;
 
                             case GPCRule.RulePosition.All:
-                                return _multiRules[z];
+                                return multiRule;
                         }
             }
             // if no rule has been returned via the logic above, and we are at this point, then no
@@ -3012,14 +2805,6 @@ namespace Learning_DRC
             return null;
         }
 
-
-        /// <summary>
-        ///     Search for context-rule in the remaining letters of the input.
-        /// </summary>
-        /// <param name="unconsumedLetters"></param>
-        /// <param name="wordPosition"></param>
-        /// <param name="splitGraphemeSeen"></param>
-        /// <returns>Returns GPC rule if one is found, otherwise returns null</returns>
         private GPCRule Search4Context(string unconsumedLetters, int wordPosition, bool splitGraphemeSeen)
         {
             // if rule is too small to be a context-rule, then return null.
@@ -3029,7 +2814,7 @@ namespace Learning_DRC
                 return null;
 
             //loop through all contextrules, and return the first matching rule found.
-            for (var z = 0; z < _contextRules.Length; z++)
+            foreach (var contextRule in _contextRules)
             {
                 var preContexts = new List<string>();
                 var postContexts = new List<string>();
@@ -3047,8 +2832,8 @@ namespace Learning_DRC
                 var targetGrapheme = new StringBuilder();
 
                 // Divide the GPC's grapheme into context and grapheme.
-                for (var i = 0; i < _contextRules[z].RGrapheme.Length; i++)
-                    switch (_contextRules[z].RGrapheme[i])
+                for (var i = 0; i < contextRule.RGrapheme.Length; i++)
+                    switch (contextRule.RGrapheme[i])
                     {
                         case '[':
                             insideContextBrackets = true;
@@ -3078,13 +2863,13 @@ namespace Learning_DRC
                             if (insideContextBrackets)
                             {
                                 if (targetGraphemeSeen == false)
-                                    preContextSB.Append(_contextRules[z].RGrapheme[i] == '\\'
+                                    preContextSB.Append(contextRule.RGrapheme[i] == '\\'
                                         ? '>'
-                                        : _contextRules[z].RGrapheme[i]);
+                                        : contextRule.RGrapheme[i]);
                                 else
-                                    postContextSB.Append(_contextRules[z].RGrapheme[i] == '\\'
+                                    postContextSB.Append(contextRule.RGrapheme[i] == '\\'
                                         ? '>'
-                                        : _contextRules[z].RGrapheme[i]);
+                                        : contextRule.RGrapheme[i]);
                             }
                             else
                             {
@@ -3105,7 +2890,7 @@ namespace Learning_DRC
                                     possibleMiddleContext = false;
                                 }
                                 targetGraphemeSeen = true;
-                                targetGrapheme.Append(_contextRules[z].RGrapheme[i]);
+                                targetGrapheme.Append(contextRule.RGrapheme[i]);
                             }
                             break;
                     }
@@ -3146,10 +2931,10 @@ namespace Learning_DRC
                 if (targetGraphemeMatch)
                 {
                     if (wordPosition == 0)
-                        switch (_contextRules[z].RPosition)
+                        switch (contextRule.RPosition)
                         {
                             case GPCRule.RulePosition.Beginning:
-                                candidateRule = _contextRules[z];
+                                candidateRule = contextRule;
                                 break;
 
                             case GPCRule.RulePosition.Middle:
@@ -3161,11 +2946,11 @@ namespace Learning_DRC
                                 break;
 
                             case GPCRule.RulePosition.All:
-                                candidateRule = _contextRules[z];
+                                candidateRule = contextRule;
                                 break;
                         }
                     else
-                        switch (_contextRules[z].RPosition)
+                        switch (contextRule.RPosition)
                         {
                             case GPCRule.RulePosition.Beginning:
                                 //candidate contextrule doesn't apply because we are no longer
@@ -3182,16 +2967,16 @@ namespace Learning_DRC
                                     if (targetGrapheme.Length < unconsumedLetters.Length - 1 ||
                                         targetGrapheme.Length == unconsumedLetters.Length - 1 &&
                                         targetGrapheme.ToString().Contains('.') && targetGrapheme[0] != '.')
-                                        candidateRule = _contextRules[z];
+                                        candidateRule = contextRule;
                                 }
                                 else if (_lastSlotSeen)
                                 {
                                     if (targetGrapheme.Length < unconsumedLetters.Length)
-                                        candidateRule = _contextRules[z];
+                                        candidateRule = contextRule;
                                 }
                                 else
                                 {
-                                    candidateRule = _contextRules[z];
+                                    candidateRule = contextRule;
                                 }
                                 break;
 
@@ -3201,17 +2986,17 @@ namespace Learning_DRC
                                 if (unconsumedLetters.Last() == Blankchar)
                                 {
                                     if (targetGrapheme.Length == unconsumedLetters.Length - 1)
-                                        candidateRule = _contextRules[z];
+                                        candidateRule = contextRule;
                                 }
                                 else if (_lastSlotSeen)
                                 {
                                     if (targetGrapheme.Length == unconsumedLetters.Length)
-                                        candidateRule = _contextRules[z];
+                                        candidateRule = contextRule;
                                 }
                                 break;
 
                             case GPCRule.RulePosition.All:
-                                candidateRule = _contextRules[z];
+                                candidateRule = contextRule;
                                 break;
                         }
 
@@ -3285,7 +3070,7 @@ namespace Learning_DRC
                         // Move on to next rule if context hasn't matched so far.
                         if (graphemeAndContextMatch == false)
                             continue;
-                        return _contextRules[z];
+                        return contextRule;
                     }
 
                     if (postContexts.Count != 0)
@@ -3347,7 +3132,7 @@ namespace Learning_DRC
                         // Move on to next rule if context hasn't matched so far.
                         if (graphemeAndContextMatch == false)
                             continue;
-                        return _contextRules[z];
+                        return contextRule;
                     }
 
                     if (middleContexts.Count != 0)
@@ -3417,7 +3202,7 @@ namespace Learning_DRC
                         // Move on to next rule if context hasn't matched so far.
                         if (graphemeAndContextMatch == false)
                             continue;
-                        return _contextRules[z];
+                        return contextRule;
                     }
                 }
             }
@@ -3426,13 +3211,6 @@ namespace Learning_DRC
             return null;
         }
 
-
-        /// <summary>
-        ///     Searches for a two rule in the remaining letters.
-        /// </summary>
-        /// <param name="unconsumedLetters"></param>
-        /// <param name="wordPosition"></param>
-        /// <returns>Returns a two rule if one found, otherwise, returns null.</returns>
         private GPCRule Search4TwoLetter(string unconsumedLetters, int wordPosition)
         {
             // if unconsumed letters is too small to have a two-rule, then return null.
@@ -3440,23 +3218,23 @@ namespace Learning_DRC
                 return null;
 
             //loop through all tworules, and return the first matching rule found.
-            for (var z = 0; z < _twoRules.Length; z++)
+            foreach (var twoRule in _twoRules)
             {
-                // we will be assuming that the current rule is an applicable rule, unless it fails to match
+// we will be assuming that the current rule is an applicable rule, unless it fails to match
                 // on a particular letter, in which case we know it is false and move on to the next rule.
                 var ruleFound = true;
 
                 // If there are only two letters left, then split-grapheme rules can't apply.
                 // move past them.
-                if (unconsumedLetters.Length == 2 && _twoRules[z].RGrapheme.Contains('.'))
+                if (unconsumedLetters.Length == 2 && twoRule.RGrapheme.Contains('.'))
                     continue;
 
-                for (var ltr = 0; ltr < _twoRules[z].RGrapheme.Length; ltr++)
+                for (var ltr = 0; ltr < twoRule.RGrapheme.Length; ltr++)
                 {
                     // move on to next letter if it is the space in a split-grapheme rule.
-                    if (_twoRules[z].RGrapheme[ltr] == '.')
+                    if (twoRule.RGrapheme[ltr] == '.')
                         continue;
-                    if (_twoRules[z].RGrapheme[ltr] != unconsumedLetters[ltr])
+                    if (twoRule.RGrapheme[ltr] != unconsumedLetters[ltr])
                     {
                         ruleFound = false;
                         break;
@@ -3464,10 +3242,10 @@ namespace Learning_DRC
                 }
                 if (ruleFound)
                     if (wordPosition == 0)
-                        switch (_twoRules[z].RPosition)
+                        switch (twoRule.RPosition)
                         {
                             case GPCRule.RulePosition.Beginning:
-                                return _twoRules[z];
+                                return twoRule;
 
                             case GPCRule.RulePosition.Middle:
                                 // candidate tworule doesn't apply if at the 0 position, move on.
@@ -3478,10 +3256,10 @@ namespace Learning_DRC
                                 break;
 
                             case GPCRule.RulePosition.All:
-                                return _twoRules[z];
+                                return twoRule;
                         }
                     else
-                        switch (_twoRules[z].RPosition)
+                        switch (twoRule.RPosition)
                         {
                             case GPCRule.RulePosition.Beginning:
                                 //candidate tworule doesn't apply because we are no longer
@@ -3495,19 +3273,19 @@ namespace Learning_DRC
                                 // correspond to a middle phoneme (graphemes starting with '.' not ok).
                                 if (unconsumedLetters.Last() == Blankchar)
                                 {
-                                    if (_twoRules[z].RGrapheme.Length < unconsumedLetters.Length - 1 ||
-                                        _twoRules[z].RGrapheme.Length == unconsumedLetters.Length - 1 &&
-                                        _twoRules[z].RGrapheme.Contains('.') && _twoRules[z].RGrapheme[0] != '.')
-                                        return _twoRules[z];
+                                    if (twoRule.RGrapheme.Length < unconsumedLetters.Length - 1 ||
+                                        twoRule.RGrapheme.Length == unconsumedLetters.Length - 1 &&
+                                        twoRule.RGrapheme.Contains('.') && twoRule.RGrapheme[0] != '.')
+                                        return twoRule;
                                 }
                                 else if (_lastSlotSeen)
                                 {
-                                    if (_twoRules[z].RGrapheme.Length < unconsumedLetters.Length)
-                                        return _twoRules[z];
+                                    if (twoRule.RGrapheme.Length < unconsumedLetters.Length)
+                                        return twoRule;
                                 }
                                 else
                                 {
-                                    return _twoRules[z];
+                                    return twoRule;
                                 }
                                 break;
 
@@ -3516,18 +3294,18 @@ namespace Learning_DRC
                                 // stretches all the way to the end of the unconsumed letters.
                                 if (unconsumedLetters.Last() == Blankchar)
                                 {
-                                    if (_twoRules[z].RGrapheme.Length == unconsumedLetters.Length - 1)
-                                        return _twoRules[z];
+                                    if (twoRule.RGrapheme.Length == unconsumedLetters.Length - 1)
+                                        return twoRule;
                                 }
                                 else if (_lastSlotSeen)
                                 {
-                                    if (_twoRules[z].RGrapheme.Length == unconsumedLetters.Length)
-                                        return _twoRules[z];
+                                    if (twoRule.RGrapheme.Length == unconsumedLetters.Length)
+                                        return twoRule;
                                 }
                                 break;
 
                             case GPCRule.RulePosition.All:
-                                return _twoRules[z];
+                                return twoRule;
                         }
             }
             // if no rule has been returned via the logic above, and we are at this point, then no
@@ -3535,26 +3313,18 @@ namespace Learning_DRC
             return null;
         }
 
-
-        /// <summary>
-        ///     Searches for a single rule in first (or only) position of the remaining letters.
-        /// </summary>
-        /// <param name="unconsumedLetters"></param>
-        /// <param name="wordPosition"></param>
-        /// <param name="splitGraphemeSeen"></param>
-        /// <returns>Returns a single rule if found, otherwise, returns null.</returns>
         private GPCRule Search4Single(string unconsumedLetters, int wordPosition, bool splitGraphemeSeen)
         {
-            for (var z = 0; z < _singleRules.Length; z++)
+            foreach (var singleRule in _singleRules)
             {
-                if (_singleRules[z].RGrapheme[0] != unconsumedLetters[0])
+                if (singleRule.RGrapheme[0] != unconsumedLetters[0])
                     continue;
 
                 if (wordPosition == 0)
-                    switch (_singleRules[z].RPosition)
+                    switch (singleRule.RPosition)
                     {
                         case GPCRule.RulePosition.Beginning:
-                            return _singleRules[z];
+                            return singleRule;
 
                         case GPCRule.RulePosition.Middle:
                             // candidate singlerule doesn't apply if at the 0 position, move on.
@@ -3568,20 +3338,20 @@ namespace Learning_DRC
                             if (unconsumedLetters.Last() == Blankchar)
                             {
                                 if (unconsumedLetters.Length == 2)
-                                    return _singleRules[z];
+                                    return singleRule;
                             }
                             else if (_lastSlotSeen)
                             {
                                 if (unconsumedLetters.Length == 1)
-                                    return _singleRules[z];
+                                    return singleRule;
                             }
                             break;
 
                         case GPCRule.RulePosition.All:
-                            return _singleRules[z];
+                            return singleRule;
                     }
                 else
-                    switch (_singleRules[z].RPosition)
+                    switch (singleRule.RPosition)
                     {
                         case GPCRule.RulePosition.Beginning:
                             //candidate singlerule doesn't apply because we are no longer
@@ -3593,20 +3363,20 @@ namespace Learning_DRC
                             // there are additional letters, or if we are in the middle of
                             // a split grapheme.
                             if (splitGraphemeSeen)
-                                return _singleRules[z];
+                                return singleRule;
                             if (unconsumedLetters.Last() == Blankchar)
                             {
                                 if (unconsumedLetters.Length != 2)
-                                    return _singleRules[z];
+                                    return singleRule;
                             }
                             else if (_lastSlotSeen)
                             {
                                 if (unconsumedLetters.Length != 1)
-                                    return _singleRules[z];
+                                    return singleRule;
                             }
                             else
                             {
-                                return _singleRules[z];
+                                return singleRule;
                             }
                             break;
 
@@ -3620,17 +3390,17 @@ namespace Learning_DRC
                                     if (unconsumedLetters.Length == 2 ||
                                         unconsumedLetters.Length == 1
                                     ) // this is for when only the blank character is left.
-                                        return _singleRules[z];
+                                        return singleRule;
                                 }
                                 else if (_lastSlotSeen)
                                 {
                                     if (unconsumedLetters.Length == 1)
-                                        return _singleRules[z];
+                                        return singleRule;
                                 }
                             break;
 
                         case GPCRule.RulePosition.All:
-                            return _singleRules[z];
+                            return singleRule;
                     }
             }
             // Shouldn't get to this point because there should always be a single rule in the
@@ -3638,26 +3408,18 @@ namespace Learning_DRC
             return null;
         }
 
-
-        /// <summary>
-        ///     Searches for a multi-phonic rule in first (or only) position of the remaining letters.
-        /// </summary>
-        /// <param name="unconsumedLetters"></param>
-        /// <param name="wordPosition"></param>
-        /// <param name="splitGraphemeSeen"></param>
-        /// <returns>Returns a single rule if found, otherwise, returns null.</returns>
         private GPCRule Search4Mphon(string unconsumedLetters, int wordPosition, bool splitGraphemeSeen)
         {
-            for (var z = 0; z < _mphonRules.Length; z++)
+            foreach (var mphonRule in _mphonRules)
             {
-                if (_mphonRules[z].RGrapheme[0] != unconsumedLetters[0])
+                if (mphonRule.RGrapheme[0] != unconsumedLetters[0])
                     continue;
 
                 if (wordPosition == 0)
-                    switch (_mphonRules[z].RPosition)
+                    switch (mphonRule.RPosition)
                     {
                         case GPCRule.RulePosition.Beginning:
-                            return _mphonRules[z];
+                            return mphonRule;
 
                         case GPCRule.RulePosition.Middle:
                             // candidate mphonrule doesn't apply if at the 0 position, move on.
@@ -3671,20 +3433,20 @@ namespace Learning_DRC
                             if (unconsumedLetters.Last() == Blankchar)
                             {
                                 if (unconsumedLetters.Length == 2)
-                                    return _mphonRules[z];
+                                    return mphonRule;
                             }
                             else if (_lastSlotSeen)
                             {
                                 if (unconsumedLetters.Length == 1)
-                                    return _mphonRules[z];
+                                    return mphonRule;
                             }
                             break;
 
                         case GPCRule.RulePosition.All:
-                            return _mphonRules[z];
+                            return mphonRule;
                     }
                 else
-                    switch (_mphonRules[z].RPosition)
+                    switch (mphonRule.RPosition)
                     {
                         case GPCRule.RulePosition.Beginning:
                             //candidate mphonrule doesn't apply because we are no longer
@@ -3696,20 +3458,20 @@ namespace Learning_DRC
                             // there are additional letters, or the parser has just parsed
                             // a split grpaheme.
                             if (splitGraphemeSeen)
-                                return _mphonRules[z];
+                                return mphonRule;
                             if (unconsumedLetters.Last() == Blankchar)
                             {
                                 if (unconsumedLetters.Length != 2)
-                                    return _mphonRules[z];
+                                    return mphonRule;
                             }
                             else if (_lastSlotSeen)
                             {
                                 if (unconsumedLetters.Length != 1)
-                                    return _mphonRules[z];
+                                    return mphonRule;
                             }
                             else
                             {
-                                return _mphonRules[z];
+                                return mphonRule;
                             }
                             break;
 
@@ -3721,29 +3483,23 @@ namespace Learning_DRC
                                 if (unconsumedLetters.Last() == Blankchar)
                                 {
                                     if (unconsumedLetters.Length == 2)
-                                        return _mphonRules[z];
+                                        return mphonRule;
                                 }
                                 else if (_lastSlotSeen)
                                 {
                                     if (unconsumedLetters.Length == 1)
-                                        return _mphonRules[z];
+                                        return mphonRule;
                                 }
                             break;
 
                         case GPCRule.RulePosition.All:
-                            return _mphonRules[z];
+                            return mphonRule;
                     }
             }
             // If at this point, no mphon rule was found.
             return null;
         }
 
-
-        /// <summary>
-        ///     Returns highest activated letter in a slot.
-        /// </summary>
-        /// <param name="slot"></param>
-        /// <returns></returns>
         private int GetMaxLetterNode(int slot)
         {
             var maxNode = 0;
@@ -3757,12 +3513,6 @@ namespace Learning_DRC
             return maxNode;
         }
 
-
-        /// <summary>
-        ///     Returns highest activated phoneme in a slot.
-        /// </summary>
-        /// <param name="slot"></param>
-        /// <returns></returns>
         private int GetMaxPhonemeNode(int slot)
         {
             var maxNode = 0;
@@ -3776,12 +3526,6 @@ namespace Learning_DRC
             return maxNode;
         }
 
-
-        /// <summary>
-        ///     Returns whether or not the input letter is a vowel
-        /// </summary>
-        /// <param name="letter"></param>
-        /// <returns>true or false value</returns>
         private bool IsItAVowel(char letter)
         {
             return _vowelStatus[_lettersReverseDictionary[letter]];
