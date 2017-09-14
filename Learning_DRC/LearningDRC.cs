@@ -9,224 +9,14 @@ namespace Learning_DRC
 {
     internal sealed class LearningDRC
     {
-        private static readonly FileInfo FileBatch = new FileInfo("batchwords.txt");
-        private static readonly FileInfo FileLog = new FileInfo("log.txt");
-        public static readonly Stopwatch Timer = new Stopwatch();
-
-        #region SAVE NETWORK METHODS
-
-        private void SaveLearnedOrthographicVocabulary(FileSystemInfo workingSubDir)
-        {
-            var path = Path.Combine(workingSubDir.FullName, OrthographicKnowledgeFilename);
-            var sw = new StreamWriter(path, false);
-
-            sw.WriteLine("# orthographicknowledge.txt");
-            sw.WriteLine("# This file records all known printed words, their indexes, and");
-            sw.WriteLine("# the spoken words to which these printed words are connected..");
-            sw.WriteLine("# FORMAT:");
-            sw.WriteLine("# WORD <OWord> <OWordIndex> <OWordFreq> <SpokenWord1> <SpokenWord1Index> <SpokenWord2> ...");
-            sw.WriteLine("#");
-            sw.WriteLine(
-                $"# Parameters: OWordThreshold: {_printedWordRecogThreshold}  PWordThreshold: {_spokenWordRecogThreshold}  C2PExcitation: {_semantic2PhonolexExcitation}  MinReadingPhonology: {_minReadingPhonology}");
-            sw.WriteLine("#");
-
-            var line = new StringBuilder();
-
-            for (var l = 0; l < _printedWordsCount; l++)
-            {
-                line.Append($"WORD {_printedWords[l]} {l} {_printedWordFreq[l]}");
-                for (var x1 = 0; x1 < _spokenWordsForEachPrintedWord[l].Count; x1++)
-                    line.Append(
-                        $" {_spokenWords[_spokenWordsForEachPrintedWord[l][x1]]} {_spokenWordsForEachPrintedWord[l][x1]}");
-                sw.WriteLine(line);
-                line.Length = 0;
-            }
-            sw.Close();
-        }
-
-        #endregion
-
-        public static ConsoleKeyInfo GetExecutionMode()
-        {
-            Console.WriteLine("Do you want to run a batch of stimuli or do a bulk run?");
-            Console.Write("Press b for batch, k for bulk run, or any other key for individual stimuli: ");
-            var modeChoice = Console.ReadKey();
-            Console.WriteLine();
-            Console.WriteLine();
-            return modeChoice;
-        }
-
-        public void ExecuteBasedOnMode(ConsoleKeyInfo executionMode)
-        {
-            switch (executionMode.KeyChar)
-            {
-                case 'b':
-                case 'B':
-                    BatchProcessing();
-                    break;
-                case 'k':
-                case 'K':
-                    BulkRun();
-                    break;
-                default:
-                    ManualProcessing();
-                    break;
-            }
-        }
-
-        public void BulkRun()
-        {
-            var bulkRun = new BulkRun(this);
-            bulkRun.RunSimulations();
-        }
-
-        public void BatchProcessing()
-        {
-            StreamReader streamR = null;
-            try
-            {
-                streamR = FileBatch.OpenText();
-            }
-            catch
-            {
-                Console.WriteLine("There was a problem opening the batch file.");
-                Console.Write("Press any key to exit. ");
-                Console.ReadKey();
-                Environment.Exit(0);
-            }
-
-            string line;
-            do
-            {
-                line = streamR.ReadLine();
-
-                if (line == null)
-                    continue;
-
-                var splitline = line.Split(' ');
-
-                switch (splitline.Length)
-                {
-                    case 2:
-                        RunSimulationWithContext(splitline[0], splitline[1]);
-                        break;
-                    case 1:
-                        RunSimulationWithoutContext(splitline[0]);
-                        break;
-                    default:
-                        var streamW = new StreamWriter(FileLog.FullName, true);
-                        streamW.WriteLine("Bad input line skipped.");
-                        streamW.Close();
-                        Console.WriteLine("Bad input line skipped.");
-                        break;
-                }
-            } while (line != null);
-            streamR.Close();
-        }
-
-        private void ManualProcessing()
-        {
-            var line = "";
-            do
-            {
-                line = GetInputFromUser();
-                var splitline = line?.Split(' ');
-                if (line == "")
-                    continue;
-
-                RunSingleItemSimulation(splitline?[0], splitline?[1]);
-            } while (line != "");
-        }
-
-        private static string GetInputFromUser()
-        {
-            Console.WriteLine("Enter stimulus <Printed Word> <Context> :");
-            Console.WriteLine("Context is optional.");
-            Console.WriteLine("(Note: Context is represented with phoneme symbols)");
-            Console.WriteLine("Press ENTER to exit.");
-            return Console.ReadLine();
-        }
-
-        private void RunSingleItemSimulation(string input, string context)
-        {
-            if (input == null)
-                Console.WriteLine("Bad input line.");
-            else if (context == null)
-                RunSimulationWithoutContext(input);
-            else
-                RunSimulationWithContext(input, context);
-        }
-
-        private void RunSimulationWithContext(string input, string context)
-        {
-            Timer.Start();
-            var output = Simulate(input, context,
-                new DirectoryInfo(Directory.GetCurrentDirectory()));
-            Timer.Stop();
-            WriteResultToFileAndConsole(input, output);
-            Timer.Reset();
-        }
-
-        private void RunSimulationWithoutContext(string input)
-        {
-            if (FileLog == null) throw new ArgumentNullException(nameof(FileLog));
-
-            Timer.Start();
-            var output = Simulate(input, "no_context",
-                new DirectoryInfo(Directory.GetCurrentDirectory()));
-            Timer.Stop();
-            WriteResultToFileAndConsole(input, output);
-            Timer.Reset();
-        }
-
-        private static void WriteResultToFileAndConsole(string input, IList<string> output)
-        {
-            var streamW = new StreamWriter(FileLog.FullName, true);
-            WriteResultToTextWriter(input, output, streamW);
-            WriteResultToConsole(input, output);
-        }
-
-        private static void WriteResultToTextWriter(string input, IList<string> output, TextWriter streamW)
-        {
-            streamW.Write("RT: {0}  Input: {1}  Context: ", output[0], input);
-            if (output.Count > 2)
-                for (var i = 2; i < output.Count; i++)
-                    streamW.Write(" {0}", output[i]);
-            else
-                streamW.Write(" <none>");
-            streamW.Write("  Output: {0}  ", output[1]);
-            streamW.WriteLine("Sim_time: {0} ms", Timer.ElapsedMilliseconds);
-            streamW.Close();
-        }
-
-        private static void WriteResultToConsole(string input, IList<string> output)
-        {
-            Console.Write($"RT: {output[0]}  Input: {input} Context: ");
-            if (output.Count > 2)
-                for (var i = 2; i < output.Count; i++)
-                    Console.Write($" {output[i]}");
-            else
-                Console.Write(" <none>");
-            Console.Write($"  Output: {output[1]}  ");
-            Console.WriteLine("Sim_time: {0} ms", Timer.ElapsedMilliseconds);
-        }
-
-        public void ClearOrthographicLexicon()
-        {
-            _printedWords = new List<string>();
-            _printedWordFreq = new List<int>();
-            _spokenWordsForEachPrintedWord = new List<List<int>>();
-            _printedWordsForEachSpokenWord = new List<int>[_spokenWordsLength];
-            _printedWordsCount = 0;
-            for (var m = 0; m < _spokenWordsLength; m++)
-                _printedWordsForEachSpokenWord[m] = new List<int>();
-        }
-
         #region FIELDS
+        public static readonly Stopwatch Timer = new Stopwatch();
         private readonly Random _rnd = new Random();
         private const char Blankchar = '+';
 
         /// FILE NAME FIELDS
+        private static readonly FileInfo FileBatch = new FileInfo("batchwords.txt");
+        private static readonly FileInfo FileLog = new FileInfo("log.txt");
         private readonly FileInfo _fileProperties = new FileInfo("properties");
         private readonly FileInfo _fileParameters = new FileInfo("default.parameters");
         private readonly FileInfo _fileLearningParameters = new FileInfo("learning.parameters");
@@ -1131,7 +921,152 @@ namespace Learning_DRC
         }
         #endregion
 
+        #region EXECUTION MODE HANDLING
+        public static ConsoleKeyInfo GetExecutionMode()
+        {
+            Console.WriteLine("Do you want to run a batch of stimuli or do a bulk run?");
+            Console.Write("Press b for batch, k for bulk run, or any other key for individual stimuli: ");
+            var modeChoice = Console.ReadKey();
+            Console.WriteLine();
+            Console.WriteLine();
+            return modeChoice;
+        }
+
+        public void ExecuteBasedOnMode(ConsoleKeyInfo executionMode)
+        {
+            switch (executionMode.KeyChar)
+            {
+                case 'b':
+                case 'B':
+                    BatchProcessing();
+                    break;
+                case 'k':
+                case 'K':
+                    BulkRun();
+                    break;
+                default:
+                    ManualProcessing();
+                    break;
+            }
+        }
+
+        public void ClearOrthographicLexicon()
+        {
+            _printedWords = new List<string>();
+            _printedWordFreq = new List<int>();
+            _spokenWordsForEachPrintedWord = new List<List<int>>();
+            _printedWordsForEachSpokenWord = new List<int>[_spokenWordsLength];
+            _printedWordsCount = 0;
+            for (var m = 0; m < _spokenWordsLength; m++)
+                _printedWordsForEachSpokenWord[m] = new List<int>();
+        }
+
+        private void BulkRun()
+        {
+            var bulkRun = new BulkRun(this);
+            bulkRun.RunSimulations();
+        }
+
+        private void BatchProcessing()
+        {
+            StreamReader streamR = null;
+            try
+            {
+                streamR = FileBatch.OpenText();
+            }
+            catch
+            {
+                Console.WriteLine("There was a problem opening the batch file.");
+                Console.Write("Press any key to exit. ");
+                Console.ReadKey();
+                Environment.Exit(0);
+            }
+
+            string line;
+            do
+            {
+                line = streamR.ReadLine();
+
+                if (line == null)
+                    continue;
+
+                var splitline = line.Split(' ');
+
+                switch (splitline.Length)
+                {
+                    case 2:
+                        RunSimulationWithContext(splitline[0], splitline[1]);
+                        break;
+                    case 1:
+                        RunSimulationWithoutContext(splitline[0]);
+                        break;
+                    default:
+                        var streamW = new StreamWriter(FileLog.FullName, true);
+                        streamW.WriteLine("Bad input line skipped.");
+                        streamW.Close();
+                        Console.WriteLine("Bad input line skipped.");
+                        break;
+                }
+            } while (line != null);
+            streamR.Close();
+        }
+
+        private void ManualProcessing()
+        {
+            var line = "";
+            do
+            {
+                line = GetInputFromUser();
+                var splitline = line?.Split(' ');
+                if (line == "")
+                    continue;
+
+                RunSingleItemSimulation(splitline?[0], splitline?[1]);
+            } while (line != "");
+        }
+
+        private static string GetInputFromUser()
+        {
+            Console.WriteLine("Enter stimulus <Printed Word> <Context> :");
+            Console.WriteLine("Context is optional.");
+            Console.WriteLine("(Note: Context is represented with phoneme symbols)");
+            Console.WriteLine("Press ENTER to exit.");
+            return Console.ReadLine();
+        }
+        #endregion
+
         #region GENERAL METHODS
+        private void RunSingleItemSimulation(string input, string context)
+        {
+            if (input == null)
+                Console.WriteLine("Bad input line.");
+            else if (context == null)
+                RunSimulationWithoutContext(input);
+            else
+                RunSimulationWithContext(input, context);
+        }
+
+        private void RunSimulationWithContext(string input, string context)
+        {
+            Timer.Start();
+            var output = Simulate(input, context,
+                new DirectoryInfo(Directory.GetCurrentDirectory()));
+            Timer.Stop();
+            WriteResultToFileAndConsole(input, output);
+            Timer.Reset();
+        }
+
+        private void RunSimulationWithoutContext(string input)
+        {
+            if (FileLog == null) throw new ArgumentNullException(nameof(FileLog));
+
+            Timer.Start();
+            var output = Simulate(input, "no_context",
+                new DirectoryInfo(Directory.GetCurrentDirectory()));
+            Timer.Stop();
+            WriteResultToFileAndConsole(input, output);
+            Timer.Reset();
+        }
         public string[] Simulate(string newStimulus, string contextualInput, DirectoryInfo workingSubDir)
         {
             var cycles = 0;
@@ -1396,105 +1331,6 @@ namespace Learning_DRC
                     break;
             }
             return true;
-        }
-
-        public void PrintParametersToFile(FileInfo printFile)
-        {
-            StreamWriter streamW = null;
-
-            try
-            {
-                streamW = new StreamWriter(printFile.FullName, true);
-            }
-            catch
-            {
-                Console.WriteLine("There was a problem creating or opening the file for printing parameters.");
-                Console.Write("Press any key to exit. ");
-                Console.ReadKey();
-                Environment.Exit(0);
-            }
-
-            streamW.WriteLine($"NumberOfLetterSlots:\t{_nLetterSlots}");
-            streamW.WriteLine($"NumberOfPhonemeSlots:\t{_nPhonemeSlots}");
-            streamW.WriteLine($"MaxPrintedWordFrequency:\t{_maxPrintedWordFreq}");
-            streamW.WriteLine($"MaxSpokenWordFrequency:\t{_maxSpokenWordFreq}");
-            streamW.WriteLine($"LearningOn:\t{_learningOn}");
-            streamW.WriteLine($"Letter2OLNormalisationOn:\t{_l2ONormalisation}");
-            streamW.WriteLine($"OrthographicBlanksCondition:\t{_orthographicBlanks}");
-            streamW.WriteLine($"VisualFeaturesPerLetter:\t{_nvFeatures}");
-            streamW.WriteLine($"MaximumCycles:\t{_maxCycles}");
-            streamW.WriteLine($"ThreholdForPrintedWordRecognition:\t{_printedWordRecogThreshold}");
-            streamW.WriteLine($"ThreholdForSpokenWordRecognition:\t{_spokenWordRecogThreshold}");
-            streamW.WriteLine($"Semantic2PhonolexExcitation:\t{_semantic2PhonolexExcitation}");
-            streamW.WriteLine($"Semantic2PhonolexInhibition:\t{_semantic2PhonolexInhibition}");
-            streamW.WriteLine($"ContextInput2Semantic(normalised):\t{_contextInput2Semantic}");
-            streamW.WriteLine($"NumberOfSemanticRepresentationsActivated:\t{_numberOfSemanticRepsActivated}");
-            streamW.WriteLine($"PrintedWordFrequencyTrainingMultiplier:\t{_printedWordFreqMultiplier}");
-            streamW.WriteLine($"ActivationRate:\t{_activationRate}");
-            streamW.WriteLine($"FrequencyScaling:\t{_frequencyScale}");
-            streamW.WriteLine($"MinimumPhonologyForReadingAloud:\t{_minReadingPhonology}");
-            streamW.WriteLine($"Feature2LetterExcitation:\t{_featureLetterExcitation}");
-            streamW.WriteLine($"Feature2LetterInhibition:\t{_featureLetterInhibition}");
-            streamW.WriteLine($"Letter2OrtholexExcitation:\t{_letterOrthLexExcitation}");
-            streamW.WriteLine($"Letter2OrtholexInhibition:\t{_letterOrthLexInhibition}");
-            streamW.WriteLine($"LetterLateralInhibition:\t{_letterLateralInhibition}");
-            streamW.WriteLine($"Ortholex2PhonolexExcitation:\t{_orthLexPhonLexExcitation}");
-            streamW.WriteLine($"Ortholex2PhonolexInhibition:\t{_orthLexPhonLexInhibition}");
-            streamW.WriteLine($"Ortholex2LetterExcitation:\t{_orthLexLetterExcitation}");
-            streamW.WriteLine($"Ortholex2LetterInhibition:\t{_orthLexLetterInhibition}");
-            streamW.WriteLine($"OrtholexLateralInhibition:\t{_orthLexLateralInhibition}");
-            streamW.WriteLine($"Phonolex2PhonemeExcitation:\t{_phonLexPhonemeExcitation}");
-            streamW.WriteLine($"Phonolex2PhonemeInhibition:\t{_phonLexPhonemeInhibition}");
-            streamW.WriteLine($"PhonoLlex2OrtholexExcitation:\t{_phonLexOrthLexExcitation}");
-            streamW.WriteLine($"PhonoLlex2OrtholexInhibition:\t{_phonLexOrthLexInhibition}");
-            streamW.WriteLine($"PhonoLlexLateralInhibition:\t{_phonLexLateralInhibition}");
-            streamW.WriteLine($"Phoneme2PhonolexExcitation:\t{_phonemePhonLexExcitation}");
-            streamW.WriteLine($"Phoneme2PhonolexInhibition:\t{_phonemePhonLexInhibition}");
-            streamW.WriteLine($"PhonemeLateralInhibition:\t{_phonemeLateralInhibition}");
-            streamW.WriteLine($"PhonemeUnsupportedDecay:\t{_phonemeUnsupportedDecay}");
-            streamW.WriteLine($"GPC2PhonemeExcitation:\t{_gpcPhonemeExcitation}");
-            streamW.WriteLine($"GPCCriticalPhonology:\t{_gpcCriticalPhonology}");
-            streamW.WriteLine($"GPCOnset:\t{_gpcOnset}");
-
-            streamW.Close();
-        }
-
-        private void PrintRelevantActivationsToFile(int cycles)
-        {
-            StreamWriter streamW = null;
-
-            try
-            {
-                streamW = new StreamWriter(_fileActs.FullName, true);
-            }
-            catch
-            {
-                Console.WriteLine("There was a problem creating or opening the activations.txt file.");
-                Console.Write("Press any key to exit. ");
-                Console.ReadKey();
-                Environment.Exit(0);
-            }
-
-            for (var i = 0; i < _nLetterSlots; i++)
-            for (var j = 0; j < _lettersLength; j++)
-                if (_actLetterLayer[i * _lettersLength + j] > _minActivationReport)
-                    streamW.WriteLine("Cycle{0}\tL{1} {2}\t{3}", cycles, i, _actLetterLayer[i * _lettersLength + j],
-                        _letters[j]);
-
-            for (var l = 0; l < _printedWordsCount; l++)
-                if (_actOrtholexLayer[l] > _minActivationReport)
-                    streamW.WriteLine("Cycle{0}\tOrth {1}\t{2}", cycles, _actOrtholexLayer[l], _printedWords[l]);
-
-            for (var m = 0; m < _spokenWordsLength; m++)
-                if (_actPhonolexLayer[m] > _minActivationReport)
-                    streamW.WriteLine("Cycle{0}\tPhon {1}\t{2}", cycles, _actPhonolexLayer[m], _spokenWords[m]);
-
-            for (var i = 0; i < _nPhonemeSlots; i++)
-            for (var j = 0; j < _phonemesLength; j++)
-                if (_actPhonemeLayer[i * _phonemesLength + j] > _minActivationReport)
-                    streamW.WriteLine("Cycle{0}\tP{1} {2}\t{3}", cycles, i, _actPhonemeLayer[i * _phonemesLength + j],
-                        _phonemes[j]);
-            streamW.Close();
         }
 
         public float GetContextInput2SemanticValue()
@@ -1963,8 +1799,6 @@ namespace Learning_DRC
         #endregion
 
         #region LEARNING METHODS
-
-
         private void AttemptLearningForCurrentStimulus(FileSystemInfo workingSubDir)
         {
             var maxActivatedOWord = 0;
@@ -2304,8 +2138,8 @@ namespace Learning_DRC
             _currentRightmostPhoneme = -1;
             // initialise to -1 so that if there is only 1 rule applied, it will be counted
             // and the rightmostphoneme will be set to slot 0.
-            for (var z = 0; z < rulesApplied.Count; z++)
-                _currentRightmostPhoneme += rulesApplied[z].RPhoneme.Length;
+            foreach (var gpcRule in rulesApplied)
+                _currentRightmostPhoneme += gpcRule.RPhoneme.Length;
 
             // set currentRightmostPhoneme to 0 if no rule was found to apply.
             if (_currentRightmostPhoneme == -1)
@@ -2318,8 +2152,8 @@ namespace Learning_DRC
         {
             var lettersAfterSplit = 0;
             var dotSeen = false;
-            for (var ltr = 0; ltr < grapheme.Length; ltr++)
-                if (grapheme[ltr] == '.')
+            foreach (var graphemeChar in grapheme)
+                if (graphemeChar == '.')
                     dotSeen = true;
                 else if (dotSeen)
                     lettersAfterSplit++;
@@ -2464,9 +2298,9 @@ namespace Learning_DRC
             var afterOutRulesPhonemes = new StringBuilder();
             var thisPhoneme = 0;
 
-            for (var z = 0; z < rulesApplied.Count; z++)
-                if (rulesApplied[z].RPhoneme != "*")
-                    preOutRulesPhonemes.Append(rulesApplied[z].RPhoneme);
+            foreach (var outRule in rulesApplied)
+                if (outRule.RPhoneme != "*")
+                    preOutRulesPhonemes.Append(outRule.RPhoneme);
 
             //loop through rules applied
             for (var z = 0; z < rulesApplied.Count; z++)
@@ -2485,7 +2319,7 @@ namespace Learning_DRC
                 }
 
                 //loop through phonemes in each rule applied
-                for (var ph = 0; ph < rulesApplied[z].RPhoneme.Length; ph++)
+                foreach (var phonemeChar in rulesApplied[z].RPhoneme)
                 {
                     var outRuleApplied = false;
 
@@ -2584,7 +2418,7 @@ namespace Learning_DRC
                     }
 
                     if (outRuleApplied == false)
-                        afterOutRulesPhonemes.Append(rulesApplied[z].RPhoneme[ph]);
+                        afterOutRulesPhonemes.Append(phonemeChar);
 
                     thisPhoneme++;
                 }
@@ -2832,8 +2666,8 @@ namespace Learning_DRC
                 var targetGrapheme = new StringBuilder();
 
                 // Divide the GPC's grapheme into context and grapheme.
-                for (var i = 0; i < contextRule.RGrapheme.Length; i++)
-                    switch (contextRule.RGrapheme[i])
+                foreach (var graphemeChar in contextRule.RGrapheme)
+                    switch (graphemeChar)
                     {
                         case '[':
                             insideContextBrackets = true;
@@ -2863,13 +2697,13 @@ namespace Learning_DRC
                             if (insideContextBrackets)
                             {
                                 if (targetGraphemeSeen == false)
-                                    preContextSB.Append(contextRule.RGrapheme[i] == '\\'
+                                    preContextSB.Append(graphemeChar == '\\'
                                         ? '>'
-                                        : contextRule.RGrapheme[i]);
+                                        : graphemeChar);
                                 else
-                                    postContextSB.Append(contextRule.RGrapheme[i] == '\\'
+                                    postContextSB.Append(graphemeChar == '\\'
                                         ? '>'
-                                        : contextRule.RGrapheme[i]);
+                                        : graphemeChar);
                             }
                             else
                             {
@@ -2890,7 +2724,7 @@ namespace Learning_DRC
                                     possibleMiddleContext = false;
                                 }
                                 targetGraphemeSeen = true;
-                                targetGrapheme.Append(contextRule.RGrapheme[i]);
+                                targetGrapheme.Append(graphemeChar);
                             }
                             break;
                     }
@@ -3531,6 +3365,168 @@ namespace Learning_DRC
             return _vowelStatus[_lettersReverseDictionary[letter]];
         }
 
+        #endregion
+
+        #region SAVE METHODS
+        private static void WriteResultToFileAndConsole(string input, IList<string> output)
+        {
+            var streamW = new StreamWriter(FileLog.FullName, true);
+            WriteResultToTextWriter(input, output, streamW);
+            WriteResultToConsole(input, output);
+        }
+
+        private static void WriteResultToTextWriter(string input, IList<string> output, TextWriter streamW)
+        {
+            streamW.Write("RT: {0}  Input: {1}  Context: ", output[0], input);
+            if (output.Count > 2)
+                for (var i = 2; i < output.Count; i++)
+                    streamW.Write(" {0}", output[i]);
+            else
+                streamW.Write(" <none>");
+            streamW.Write("  Output: {0}  ", output[1]);
+            streamW.WriteLine("Sim_time: {0} ms", Timer.ElapsedMilliseconds);
+            streamW.Close();
+        }
+
+        private static void WriteResultToConsole(string input, IList<string> output)
+        {
+            Console.Write($"RT: {output[0]}  Input: {input} Context: ");
+            if (output.Count > 2)
+                for (var i = 2; i < output.Count; i++)
+                    Console.Write($" {output[i]}");
+            else
+                Console.Write(" <none>");
+            Console.Write($"  Output: {output[1]}  ");
+            Console.WriteLine("Sim_time: {0} ms", Timer.ElapsedMilliseconds);
+        }
+
+        private void SaveLearnedOrthographicVocabulary(FileSystemInfo workingSubDir)
+        {
+            var path = Path.Combine(workingSubDir.FullName, OrthographicKnowledgeFilename);
+            var sw = new StreamWriter(path, false);
+
+            sw.WriteLine("# orthographicknowledge.txt");
+            sw.WriteLine("# This file records all known printed words, their indexes, and");
+            sw.WriteLine("# the spoken words to which these printed words are connected..");
+            sw.WriteLine("# FORMAT:");
+            sw.WriteLine("# WORD <OWord> <OWordIndex> <OWordFreq> <SpokenWord1> <SpokenWord1Index> <SpokenWord2> ...");
+            sw.WriteLine("#");
+            sw.WriteLine(
+                $"# Parameters: OWordThreshold: {_printedWordRecogThreshold}  PWordThreshold: {_spokenWordRecogThreshold}  C2PExcitation: {_semantic2PhonolexExcitation}  MinReadingPhonology: {_minReadingPhonology}");
+            sw.WriteLine("#");
+
+            var line = new StringBuilder();
+
+            for (var l = 0; l < _printedWordsCount; l++)
+            {
+                line.Append($"WORD {_printedWords[l]} {l} {_printedWordFreq[l]}");
+                for (var x1 = 0; x1 < _spokenWordsForEachPrintedWord[l].Count; x1++)
+                    line.Append(
+                        $" {_spokenWords[_spokenWordsForEachPrintedWord[l][x1]]} {_spokenWordsForEachPrintedWord[l][x1]}");
+                sw.WriteLine(line);
+                line.Length = 0;
+            }
+            sw.Close();
+        }
+
+        public void PrintParametersToFile(FileInfo printFile)
+        {
+            StreamWriter streamW = null;
+
+            try
+            {
+                streamW = new StreamWriter(printFile.FullName, true);
+            }
+            catch
+            {
+                Console.WriteLine("There was a problem creating or opening the file for printing parameters.");
+                Console.Write("Press any key to exit. ");
+                Console.ReadKey();
+                Environment.Exit(0);
+            }
+
+            streamW.WriteLine($"NumberOfLetterSlots:\t{_nLetterSlots}");
+            streamW.WriteLine($"NumberOfPhonemeSlots:\t{_nPhonemeSlots}");
+            streamW.WriteLine($"MaxPrintedWordFrequency:\t{_maxPrintedWordFreq}");
+            streamW.WriteLine($"MaxSpokenWordFrequency:\t{_maxSpokenWordFreq}");
+            streamW.WriteLine($"LearningOn:\t{_learningOn}");
+            streamW.WriteLine($"Letter2OLNormalisationOn:\t{_l2ONormalisation}");
+            streamW.WriteLine($"OrthographicBlanksCondition:\t{_orthographicBlanks}");
+            streamW.WriteLine($"VisualFeaturesPerLetter:\t{_nvFeatures}");
+            streamW.WriteLine($"MaximumCycles:\t{_maxCycles}");
+            streamW.WriteLine($"ThreholdForPrintedWordRecognition:\t{_printedWordRecogThreshold}");
+            streamW.WriteLine($"ThreholdForSpokenWordRecognition:\t{_spokenWordRecogThreshold}");
+            streamW.WriteLine($"Semantic2PhonolexExcitation:\t{_semantic2PhonolexExcitation}");
+            streamW.WriteLine($"Semantic2PhonolexInhibition:\t{_semantic2PhonolexInhibition}");
+            streamW.WriteLine($"ContextInput2Semantic(normalised):\t{_contextInput2Semantic}");
+            streamW.WriteLine($"NumberOfSemanticRepresentationsActivated:\t{_numberOfSemanticRepsActivated}");
+            streamW.WriteLine($"PrintedWordFrequencyTrainingMultiplier:\t{_printedWordFreqMultiplier}");
+            streamW.WriteLine($"ActivationRate:\t{_activationRate}");
+            streamW.WriteLine($"FrequencyScaling:\t{_frequencyScale}");
+            streamW.WriteLine($"MinimumPhonologyForReadingAloud:\t{_minReadingPhonology}");
+            streamW.WriteLine($"Feature2LetterExcitation:\t{_featureLetterExcitation}");
+            streamW.WriteLine($"Feature2LetterInhibition:\t{_featureLetterInhibition}");
+            streamW.WriteLine($"Letter2OrtholexExcitation:\t{_letterOrthLexExcitation}");
+            streamW.WriteLine($"Letter2OrtholexInhibition:\t{_letterOrthLexInhibition}");
+            streamW.WriteLine($"LetterLateralInhibition:\t{_letterLateralInhibition}");
+            streamW.WriteLine($"Ortholex2PhonolexExcitation:\t{_orthLexPhonLexExcitation}");
+            streamW.WriteLine($"Ortholex2PhonolexInhibition:\t{_orthLexPhonLexInhibition}");
+            streamW.WriteLine($"Ortholex2LetterExcitation:\t{_orthLexLetterExcitation}");
+            streamW.WriteLine($"Ortholex2LetterInhibition:\t{_orthLexLetterInhibition}");
+            streamW.WriteLine($"OrtholexLateralInhibition:\t{_orthLexLateralInhibition}");
+            streamW.WriteLine($"Phonolex2PhonemeExcitation:\t{_phonLexPhonemeExcitation}");
+            streamW.WriteLine($"Phonolex2PhonemeInhibition:\t{_phonLexPhonemeInhibition}");
+            streamW.WriteLine($"PhonoLlex2OrtholexExcitation:\t{_phonLexOrthLexExcitation}");
+            streamW.WriteLine($"PhonoLlex2OrtholexInhibition:\t{_phonLexOrthLexInhibition}");
+            streamW.WriteLine($"PhonoLlexLateralInhibition:\t{_phonLexLateralInhibition}");
+            streamW.WriteLine($"Phoneme2PhonolexExcitation:\t{_phonemePhonLexExcitation}");
+            streamW.WriteLine($"Phoneme2PhonolexInhibition:\t{_phonemePhonLexInhibition}");
+            streamW.WriteLine($"PhonemeLateralInhibition:\t{_phonemeLateralInhibition}");
+            streamW.WriteLine($"PhonemeUnsupportedDecay:\t{_phonemeUnsupportedDecay}");
+            streamW.WriteLine($"GPC2PhonemeExcitation:\t{_gpcPhonemeExcitation}");
+            streamW.WriteLine($"GPCCriticalPhonology:\t{_gpcCriticalPhonology}");
+            streamW.WriteLine($"GPCOnset:\t{_gpcOnset}");
+
+            streamW.Close();
+        }
+
+        private void PrintRelevantActivationsToFile(int cycles)
+        {
+            StreamWriter streamW = null;
+
+            try
+            {
+                streamW = new StreamWriter(_fileActs.FullName, true);
+            }
+            catch
+            {
+                Console.WriteLine("There was a problem creating or opening the activations.txt file.");
+                Console.Write("Press any key to exit. ");
+                Console.ReadKey();
+                Environment.Exit(0);
+            }
+
+            for (var i = 0; i < _nLetterSlots; i++)
+            for (var j = 0; j < _lettersLength; j++)
+                if (_actLetterLayer[i * _lettersLength + j] > _minActivationReport)
+                    streamW.WriteLine("Cycle{0}\tL{1} {2}\t{3}", cycles, i, _actLetterLayer[i * _lettersLength + j],
+                        _letters[j]);
+
+            for (var l = 0; l < _printedWordsCount; l++)
+                if (_actOrtholexLayer[l] > _minActivationReport)
+                    streamW.WriteLine("Cycle{0}\tOrth {1}\t{2}", cycles, _actOrtholexLayer[l], _printedWords[l]);
+
+            for (var m = 0; m < _spokenWordsLength; m++)
+                if (_actPhonolexLayer[m] > _minActivationReport)
+                    streamW.WriteLine("Cycle{0}\tPhon {1}\t{2}", cycles, _actPhonolexLayer[m], _spokenWords[m]);
+
+            for (var i = 0; i < _nPhonemeSlots; i++)
+            for (var j = 0; j < _phonemesLength; j++)
+                if (_actPhonemeLayer[i * _phonemesLength + j] > _minActivationReport)
+                    streamW.WriteLine("Cycle{0}\tP{1} {2}\t{3}", cycles, i, _actPhonemeLayer[i * _phonemesLength + j],
+                        _phonemes[j]);
+            streamW.Close();
+        }
         #endregion
     }
 }
